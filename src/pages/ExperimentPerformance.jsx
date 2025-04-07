@@ -11,6 +11,7 @@ import {
   arrayMeanAbsoluteDeviationAroundMean,
   formatNumberMoney,
   formatTime,
+  formatSecondsToHMS
 } from "../components/context/utils";
 import TimeScatterPlot from "../components/plots/TimeScatterPlot";
 import { cn, exportToCSV } from "../services/utils";
@@ -26,6 +27,7 @@ import {
 } from "../common/Table";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import EnergyFootprintComparison from "../components/performance/EnergyFootprintComparison";
+import PhaseChart from "../components/plots/PhaseChart";
 
 const PERFORMANCE_PLOTS = [
   {
@@ -482,6 +484,63 @@ const PerformanceSustainability = ({ data }) => {
   );
 };
 
+
+const CriticalPathBox = ({ criticalPath, phases, formatSecondsToHMS }) => {
+  return (
+    <div className="rounded-2xl border grow dark:bg-neutral-50 dark:text-black">
+      <div className="bg-dark rounded-t-xl flex justify-between items-center text-white px-6 py-2 mb-2">
+        <label className="font-bold">CRITICAL PATH</label>
+      </div>
+      <div className="p-4">
+        <div>
+          <h4 className="font-semibold mb-2">Critical path graph</h4>
+          {criticalPath && criticalPath.length > 0 ? (
+            <div className="graph-wrapper flex flex-row items-center overflow-auto">
+              {criticalPath.map((job, idx) => (
+                <Fragment key={idx}>
+                  <div
+                    className="graph-node bg-blue-100 p-2 rounded shadow-md text-center"
+                    style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    <div className="font-bold">{job.name}</div>
+                    <div className="text-base">
+                      Queue: {formatSecondsToHMS(job.queue)}
+                    </div>
+                    <div className="text-base">
+                      Run: {formatSecondsToHMS(job.running)}
+                    </div>
+                  </div>
+                  {idx < criticalPath.length - 1 && (
+                    <div className="graph-edge mx-2 text-gray-600">
+                      <i className="fa-solid fa-arrow-right"></i>
+                    </div>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+          ) : (
+            <span>No critical path data available.</span>
+          )}
+        </div>
+        <div className="mt-4">
+          <h4 className="font-semibold mb-2">Phases of the experiment</h4>
+          {phases ? (
+            <ul className="list-disc list-inside">
+              <li><strong>Pre-SIM:</strong> <span className="rounded px-1 bg-light">{formatSecondsToHMS(phases.pre_sim_time)}</span></li>
+              <li><strong>SIM:</strong> <span className="rounded px-1 bg-light">{formatSecondsToHMS(phases.sim_time)}</span></li>
+              <li><strong>Post-SIM:</strong> <span className="rounded px-1 bg-light">{formatSecondsToHMS(phases.post_sim_time)}</span></li>
+              <li><strong>Total:</strong> <span className="rounded px-1 bg-light">{formatSecondsToHMS(phases.total_time)}</span></li>
+            </ul>
+          ) : (
+            <span>No phase data available.</span>
+          )}
+        </div>
+        <PhaseChart phases={phases} formatSecondsToHMS={formatSecondsToHMS} />
+      </div>
+    </div>
+  );
+};
+
 const ExperimentPerformance = () => {
   const routeParams = useParams();
   const [showWarnings, setShowWarnings] = useState(false);
@@ -590,7 +649,7 @@ const ExperimentPerformance = () => {
                 <p>
                   Scrollable list where each item represents the last successful{" "} 
                   <strong>SIM</strong> job for each <strong>CHUNK</strong>. 
-                  It's important to know that <strong>retries</strong> are <strong>not considered</strong> in this list.
+                  It's important to know that <strong>retries</strong> are <strong>only considered for the energy and the footprint</strong> in this list.
                   Displays key information such as <strong>Job Name</strong>,{" "} 
                   <strong>QUEUE</strong> and {" "}
                   <strong>RUNNING</strong> time in{" "}<em>HH:mm:ss</em> format,{" "} 
@@ -704,7 +763,11 @@ const ExperimentPerformance = () => {
                 <strong>Consumed Energy (J)</strong>:
                 <span>
                 {" "}Represents the sum of consumed energy by the
-                platform for each last successful <strong>SIM</strong> job of each <strong>CHUNK</strong>.
+                platform for each last successful <strong>SIM</strong> job of each <strong>CHUNK</strong>.{" "}
+                <em> 
+                Note: It considers the retries of all the jobs; more details of the retries of each 
+                job at the Statistics Section.
+                </em>
                 </span>
               </li>
               <li>
@@ -721,9 +784,10 @@ const ExperimentPerformance = () => {
                 Note: To be able to calculate the footprint, the energy in Joules is first 
                 converted to Megawatt-hours by dividing by 3.6*10⁹. Moreover, ensure 
                 that the 'CF' and 'PUE' values are configured in the platform settings to obtain 
-                the footprint. Finally, the units of the CF showed at the article are in kgCO₂/MWh. 
+                the footprint. Moreover, the units of the CF showed at the article are in kgCO₂/MWh. 
                 However, we suggest to use gCO₂/MWh because it facilitates the comprehension 
-                of the footprint values.
+                of the footprint values. Finally, it considers the retries of all the jobs; more details 
+                of the retries of each job at the Statistics Section.
                 </em>
               </li>
               <p>
@@ -944,6 +1008,12 @@ const ExperimentPerformance = () => {
                   </div>
                 </div>
               </div>
+
+            <CriticalPathBox
+              criticalPath={data?.critical_path}
+              phases={data?.phases}
+              formatSecondsToHMS={formatSecondsToHMS}
+            />
           
             <div className="rounded-2xl border grow dark:bg-neutral-50 dark:text-black">
               <div className="bg-dark rounded-t-xl flex gap-3 justify-between items-center text-white px-4 py-3 mb-4">
@@ -954,6 +1024,7 @@ const ExperimentPerformance = () => {
                 <PerformancePlots considered={data.considered} />
               </div>
             </div>
+
           </>
         )}
       </div>

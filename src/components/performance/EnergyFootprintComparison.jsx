@@ -76,15 +76,19 @@ const Comparison = ({ metric, title, field, emptyDescription }) => {
             })),
     ];
     return (
-        <div className="flex flex-col md:flex-row justify-start items-center w-full gap-4">
-            <div className="md:w-3/4">
+        <div className="flex flex-col md:flex-row justify-start items-center w-full gap-12">
+            <div className="w-3/4 overflow-x-auto">
                 <h3 className="text-xl font-bold mb-2">{title}</h3>
-                <BarPlot data={barData} width={900} height={280} margin={{ top: 0, right: 55, bottom: 60, left: 110 }} maxWridthTextAxisY={100}/>
+                <BarPlot 
+                    data={barData} 
+                    width={900} 
+                    height={280} 
+                    margin={{ top: 20, right: 30, bottom: 60, left: 150 }} 
+                    maxWridthTextAxisY={150} 
+                />
             </div>
-            <div className="flex items-center justify-center">
-                <div>
-                    <ReferenceTable mode={field} experimentValue={metric} />
-                </div>
+            <div className="w-1/4 overflow-x-auto">
+                <ReferenceTable mode={field} experimentValue={metric} />
             </div>
         </div>
     );
