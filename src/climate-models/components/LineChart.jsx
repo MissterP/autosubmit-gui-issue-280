@@ -180,7 +180,7 @@ const LineChart = ({
 
         const maxValue = getMaxValue();
         const yScale = d3.scaleLinear()
-            .domain([0, maxValue])
+            .domain([0, maxValue * 1.2]) // Add 20% padding to ensure top value is always visible
             .range([height, 0]);
 
         // Create tooltip
@@ -690,6 +690,16 @@ const LineChart = ({
                     <i className="fa-solid fa-chart-line text-4xl text-gray-400 mb-4"></i>
                     <p className="text-gray-500 dark:text-gray-400">
                         {selectedModels.size === 0 ? 'Please select at least one model to display the chart' : 'No data to display'}
+                    </p>
+                </div>
+            )}
+            
+            {/* HPC Platform Information */}
+            {title.toLowerCase().includes('footprint') && (
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-neutral-600">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <i className="fa-solid fa-info-circle"></i>
+                        Data includes jobs executed on HPC MareNostrum4 and MareNostrum5 platforms
                     </p>
                 </div>
             )}

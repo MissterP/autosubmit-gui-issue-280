@@ -9,8 +9,10 @@ const MetricPageHeader = ({
     return (
         <div className="bg-white dark:bg-neutral-700 rounded-lg p-6 border border-gray-200 dark:border-neutral-600">
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <i className={icon}></i>
+                <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-primary text-white">
+                        <i className={`${icon} text-3xl`}></i>
+                    </div>
                     <div>
                         <h1 className="text-2xl font-bold text-dark dark:text-light mb-2">
                             {title}

@@ -57,7 +57,7 @@ const ClimateModels = () => {
         },
         {
             id: "footprint-models", 
-            title: "Model Footprint",
+            title: "Models Carbon Footprint",
             description: "Monitor the computational footprint and resource usage of different climate models. Track energy consumption and performance metrics across simulation jobs.",
             icon: "fa-solid fa-leaf",
             route: "/climate-models/footprint-models"

@@ -83,9 +83,10 @@ const Histogram = ({
         const g = svg.append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
 
-        // Scales
+        // Scales - improved domain to ensure top tick is always visible
+        const maxValue = d3.max(displayData, d => d[valueKey] || 0);
         const xScale = d3.scaleLinear()
-            .domain([0, d3.max(displayData, d => d[valueKey] || 0)])
+            .domain([0, maxValue * 1.2]) // Add 20% padding to ensure top value is always visible
             .range([0, width]);
 
         const yScale = d3.scaleBand()
@@ -187,9 +188,9 @@ const Histogram = ({
             .delay(400)
             .style("opacity", 1);
 
-        // X-axis
+        // X-axis with better tick configuration
         const xAxis = d3.axisBottom(xScale)
-            .ticks(5) // Limit number of ticks to prevent overlapping
+            .ticks(6) // Increase number of ticks to ensure better coverage
             .tickFormat(d => formatAxisLabel(d));
 
         g.append("g")
@@ -197,19 +198,19 @@ const Histogram = ({
             .attr("transform", `translate(0,${height})`)
             .call(xAxis)
             .selectAll("text")
-            .style("font-size", "14px")
+            .style("font-size", "16px")
             .style("font-weight", "bold")
             .style("fill", "#374151")
             .style("text-anchor", "middle");
 
-        // Y-axis
+        // Y-axis with larger font
         const yAxis = d3.axisLeft(yScale);
 
         g.append("g")
             .attr("class", "y-axis")
             .call(yAxis)
             .selectAll("text")
-            .style("font-size", "14px") // Increased font size
+            .style("font-size", "16px") // Increased font size
             .style("font-weight", "bold")
             .style("fill", "#374151")
             .style("text-anchor", "end") // Right alignment for better readability
@@ -319,6 +320,16 @@ const Histogram = ({
                 <div className="text-center py-12 bg-gray-50 dark:bg-neutral-600 rounded-lg">
                     <i className="fa-solid fa-chart-bar text-4xl text-gray-400 mb-4"></i>
                     <p className="text-gray-500 dark:text-gray-400">No data to display</p>
+                </div>
+            )}
+            
+            {/* HPC Platform Information */}
+            {title.toLowerCase().includes('footprint') && (
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-neutral-600">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <i className="fa-solid fa-info-circle"></i>
+                        Data includes jobs executed on HPC MareNostrum4 and MareNostrum5 platforms
+                    </p>
                 </div>
             )}
         </div>

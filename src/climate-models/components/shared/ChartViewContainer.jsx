@@ -82,6 +82,7 @@ const ChartViewContainer = ({
                                     onChange={(e) => setLimit(Number(e.target.value))}
                                     className="form-select text-base border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-dark dark:text-light rounded px-3 py-2 min-w-[140px]"
                                 >
+                                    <option value={3}>3 models</option>
                                     <option value={5}>5 models</option>
                                     <option value={10}>10 models</option>
                                     <option value={15}>15 models</option>

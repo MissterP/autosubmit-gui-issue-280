@@ -179,8 +179,7 @@ const StackedAreaChart = ({
 
         const maxY = d3.max(stackedData, layer => d3.max(layer, d => d[1]));
         const yScale = d3.scaleLinear()
-            .domain([0, maxY])
-            .nice()
+            .domain([0, maxY * 1.2]) // Add 20% padding to ensure top value is always visible
             .range([height, 0]);
 
         // Area generator
@@ -381,7 +380,10 @@ const StackedAreaChart = ({
 
     return (
         <div className={cn("bg-white dark:bg-neutral-700 rounded-lg p-6 border border-gray-200 dark:border-neutral-600", className)}>
-            <h3 className="text-lg font-semibold text-dark dark:text-light mb-6">{title}</h3>
+            <div className="mb-6">
+                <h3 className="text-lg font-semibold text-dark dark:text-light">{title}</h3>
+                
+            </div>
             
             {/* Model Selection Checkboxes */}
             <div className="mb-8 p-6 bg-gray-50 dark:bg-neutral-600 rounded-lg border-2 border-gray-200 dark:border-neutral-500">
@@ -465,6 +467,16 @@ const StackedAreaChart = ({
                     <i className="fa-solid fa-chart-area text-4xl text-gray-400 mb-4"></i>
                     <p className="text-gray-500 dark:text-gray-400">
                         {selectedModels.size === 0 ? 'Please select at least one model to display the chart' : 'No data to display'}
+                    </p>
+                </div>
+            )}
+            
+            {/* HPC Platform Information */}
+            {title.toLowerCase().includes('footprint') && (
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-neutral-600">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <i className="fa-solid fa-info-circle"></i>
+                        Data includes jobs executed on HPC MareNostrum4 and MareNostrum5 platforms
                     </p>
                 </div>
             )}

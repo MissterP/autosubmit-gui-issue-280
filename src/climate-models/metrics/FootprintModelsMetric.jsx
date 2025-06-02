@@ -5,18 +5,19 @@ import { useGetFootprintModelsAggregatedQuery, useGetFootprintModelsHistoricalQu
 import MetricPageHeader from "../components/shared/MetricPageHeader";
 import ChartViewContainer from "../components/shared/ChartViewContainer";
 import HistoricalDataSection from "../components/shared/HistoricalDataSection";
+import TopExperimentsSection from "../components/TopExperimentsSection";
 
 const FootprintModelsMetric = () => {
-    useASTitle("Model Footprint - Climate Models");
+    useASTitle("Model Carbon Footprint - Climate Models");
     useBreadcrumb([
         { name: "Climate Models", route: "/climate-models" },
-        { name: "Model Footprint" }
+        { name: "Model Carbon Footprint" }
     ]);
 
     const [view, setView] = useState("aggregated");
     const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState(3);
     const [selectedSimJobs, setSelectedSimJobs] = useState([]);
     const [showSimJobs, setShowSimJobs] = useState(false);
     const [selectedDate, setSelectedDate] = useState("");
@@ -43,6 +44,12 @@ const FootprintModelsMetric = () => {
         const expidMatch = simJobId.match(/^([a-zA-Z0-9]+)_/);
         if (expidMatch) {
             const expid = expidMatch[1];
+            window.open(`/experiment/${expid}/quick`, '_blank');
+        }
+    };
+
+    const handleExperimentClick = (expid) => {
+        if (expid) {
             window.open(`/experiment/${expid}/quick`, '_blank');
         }
     };
@@ -84,7 +91,7 @@ const FootprintModelsMetric = () => {
     // Chart configuration
     const chartProps = {
         histogram: {
-            title: `Model Footprint (Top ${limit} Models)`,
+            title: `Model Carbon Footprint (Top ${limit} Models)`,
             xAxisLabel: "Climate Models",
             yAxisLabel: "Footprint Value (gCO₂)",
             maxBars: limit,
@@ -94,7 +101,7 @@ const FootprintModelsMetric = () => {
             formatAsInteger: false
         },
         lineChart: {
-            title: "Model Footprint Over Time (Cumulative)",
+            title: "Model Carbon Footprint Over Time (Cumulative)",
             xAxisLabel: "Date",
             yAxisLabel: "Cumulative Footprint Value (gCO₂)",
             valueKey: "footprint",
@@ -104,7 +111,7 @@ const FootprintModelsMetric = () => {
             showBothValues: false
         },
         stackedArea: {
-            title: "Model Footprint Over Time (Stacked Areas)",
+            title: "Model Carbon Footprint Over Time (Stacked Areas)",
             xAxisLabel: "Date",
             yAxisLabel: `Cumulative gCO₂`,
             valueKey: "footprint",
@@ -128,10 +135,10 @@ const FootprintModelsMetric = () => {
         <div className="flex flex-col gap-6">
             {/* Header */}
             <MetricPageHeader
-                icon="fa-solid fa-chart-area"
+                icon="fa-solid fa-leaf"
                 iconColor="text-green-500"
-                title="Model Footprint"
-                description="Computational footprint and resource usage analysis of climate models"
+                title="Model Carbon Footprint"
+                description="Computational footprint and resource usage of climate models"
                 backTo="/climate-models"
                 backText="Back to Metrics"
             />
@@ -154,6 +161,16 @@ const FootprintModelsMetric = () => {
                 isHistoricalError={isHistoricalError}
                 chartProps={chartProps}
             />
+
+            {/* Top 3 Experiments Section - Only show in aggregated view */}
+            {view === "aggregated" && aggregatedData && (
+                <TopExperimentsSection
+                    data={aggregatedData}
+                    isLoading={isAggregatedFetching}
+                    isError={isAggregatedError}
+                    handleExperimentClick={handleExperimentClick}
+                />
+            )}
 
             {/* Historical Data Section */}
             <HistoricalDataSection
