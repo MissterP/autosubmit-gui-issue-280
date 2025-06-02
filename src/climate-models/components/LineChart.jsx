@@ -292,23 +292,18 @@ const LineChart = ({
                     .style("opacity", 0)
                     .on("mouseover", function(event, d) {
                         d3.select(this).attr("r", 5);
-                        const cumulativeValue = cumulativeData.find(cd => cd.date.getTime() === d.date.getTime())?.value || 0;
-                        const formattedDate = d.date.toLocaleDateString('en-US', { 
-                            weekday: 'short', 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                        });
+                        // Get the last date's cumulative value for this model
+                        const lastDate = parsedData[parsedData.length - 1];
+                        const lastCumulativeValue = lastDate ? (lastDate[`cumulative_${model.fullName}`] || 0) : 0;
                         
                         tooltip
                             .style("visibility", "visible")
                             .html(`<div style="text-align: center;">
                                    <strong style="color: ${model.color};">${model.name}</strong><br/>
-                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
                                    <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
                                    Day Count: <strong>${formatValue(d.value)}</strong></span><br/>
                                    <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
-                                   Cumulative: <strong>${formatValue(cumulativeValue)}</strong></span>
+                                   Cumulative: <strong>${formatValue(lastCumulativeValue)}</strong></span>
                                    </div>`);
                     })
                     .on("mousemove", function(event) {
@@ -353,7 +348,7 @@ const LineChart = ({
                     .on("mouseover", function(event, d) {
                         d3.select(this).attr("r", 8);
                         const currentValue = currentData.find(cd => cd.date.getTime() === d.date.getTime())?.value || 0;
-                        const formattedDate = d.date.toLocaleDateString('en-US', { 
+                        const formattedDate = d.date.toLocaleDateString('es-ES', { 
                             weekday: 'short', 
                             year: 'numeric', 
                             month: 'short', 
@@ -432,28 +427,23 @@ const LineChart = ({
                     .on("mouseover", function(event, d) {
                         d3.select(this).attr("r", 8);
                         
-                        const formattedDate = d.date.toLocaleDateString('en-US', { 
-                            weekday: 'short', 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                        });
-                        
                         // Get current and cumulative values for this date
                         const currentValueKey = `current_${model.fullName}`;
                         const dateData = parsedData.find(pd => pd.date.getTime() === d.date.getTime());
                         const currentValue = dateData ? (dateData[currentValueKey] || 0) : 0;
-                        const cumulativeValue = d.value; // This is the cumulative value being displayed
+                        
+                        // Get the last date's cumulative value for this model
+                        const lastDate = parsedData[parsedData.length - 1];
+                        const lastCumulativeValue = lastDate ? (lastDate[`cumulative_${model.fullName}`] || 0) : 0;
                         
                         tooltip
                             .style("visibility", "visible")
                             .html(`<div style="text-align: center;">
                                    <strong style="color: ${model.color};">${model.name}</strong><br/>
-                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
                                    <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
                                    Day Count: <strong>${formatValue(currentValue)}</strong></span><br/>
                                    <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
-                                   Cumulative: <strong>${formatValue(cumulativeValue)}</strong></span>
+                                   Cumulative: <strong>${formatValue(lastCumulativeValue)}</strong></span>
                                    </div>`);
                     })
                     .on("mousemove", function(event) {
@@ -487,7 +477,7 @@ const LineChart = ({
         // X-axis
         const xAxis = d3.axisBottom(xScale)
             .tickFormat(d3.timeFormat("%m/%d"))
-            .ticks(Math.min(processedData.length, 7)); // Reduce number of ticks to prevent overlapping
+            .tickValues(parsedData.map(d => d.date)); // Use only actual data dates
 
         g.append("g")
             .attr("class", "x-axis")
@@ -635,7 +625,7 @@ const LineChart = ({
                                     className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-400 flex-shrink-0" 
                                     style={{ backgroundColor: model.color }}
                                 ></div>
-                                <span className="text-sm text-dark dark:text-light font-medium truncate" title={model.name}>
+                                <span className="text-sm text-dark dark:text-light font-bold truncate" title={model.name}>
                                     {model.name}
                                 </span>
                             </div>
