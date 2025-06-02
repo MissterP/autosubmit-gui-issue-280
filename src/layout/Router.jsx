@@ -27,6 +27,9 @@ import { appActions } from "../store/appSlice";
 import { useEffect } from "react";
 import Footer from "./Footer";
 import TopAnnouncement from "./TopAnnouncement";
+import ClimateModels from "../climate-models/ClimateModels";
+import PopularModelsMetric from "../climate-models/metrics/PopularModelsMetric";
+import FootprintModelsMetric from "../climate-models/metrics/FootprintModelsMetric";
 
 const router = createBrowserRouter(
   [
@@ -57,6 +60,18 @@ const router = createBrowserRouter(
         {
           path: "/settings",
           element: <UserSettings />,
+        },
+        {
+          path: "/climate-models",
+          element: <ClimateModels />,
+        },
+        {
+          path: "/climate-models/popular-models",
+          element: <PopularModelsMetric />,
+        },
+        {
+          path: "/climate-models/footprint-models",
+          element: <FootprintModelsMetric />,
         },
         {
           path: "/experiment/:expid",

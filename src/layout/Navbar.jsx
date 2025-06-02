@@ -18,6 +18,11 @@ const NAVBAR_ITEMS = [
     route: "/",
   },
   {
+    name: "CLIMATE MODELS",
+    iconClass: "fa-solid fa-globe",
+    route: "/climate-models",
+  },
+  {
     name: "ABOUT",
     iconClass: "fa-solid fa-circle-info",
     route: "/about",
