@@ -18,6 +18,7 @@ const FootprintModelsMetric = () => {
     const [view, setView] = useState("aggregated"); // "aggregated" or "historical"
     const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [limit, setLimit] = useState(10); // Limit for aggregated data
     const [selectedSimJobs, setSelectedSimJobs] = useState([]);
     const [showSimJobs, setShowSimJobs] = useState(false);
     const [selectedDate, setSelectedDate] = useState("");
@@ -28,7 +29,7 @@ const FootprintModelsMetric = () => {
         data: aggregatedData, 
         isFetching: isAggregatedFetching, 
         isError: isAggregatedError 
-    } = useGetFootprintModelsAggregatedQuery({ limit: 20 });
+    } = useGetFootprintModelsAggregatedQuery({ limit });
 
     const { 
         data: historicalData, 
@@ -148,6 +149,24 @@ const FootprintModelsMetric = () => {
                         </button>
                     </div>
 
+                    {view === "aggregated" && (
+                        <div className="flex items-center gap-4 ml-auto">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium">Show top:</label>
+                                <select
+                                    value={limit}
+                                    onChange={(e) => setLimit(Number(e.target.value))}
+                                    className="form-select text-sm border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-dark dark:text-light rounded"
+                                >
+                                    <option value={5}>5 models</option>
+                                    <option value={10}>10 models</option>
+                                    <option value={15}>15 models</option>
+                                    <option value={20}>20 models</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     {view === "historical" && (
                         <div className="flex items-center gap-4 ml-auto">
                             <div className="flex items-center gap-2">
@@ -193,10 +212,14 @@ const FootprintModelsMetric = () => {
                     {aggregatedData?.models && (
                         <Histogram
                             data={aggregatedData.models}
-                            title="Model Footprint (Total)"
+                            title={`Model Footprint (Top ${limit} Models)`}
                             xAxisLabel="Climate Models"
-                            yAxisLabel="Footprint Value"
-                            maxBars={10}
+                            yAxisLabel="Footprint Value (gCO₂)"
+                            maxBars={limit}
+                            valueKey="footprint"
+                            cumulativeValueKey="cumulative_footprint"
+                            modelKey="model"
+                            formatAsInteger={false}
                         />
                     )}
                 </div>
@@ -224,6 +247,11 @@ const FootprintModelsMetric = () => {
                             title="Model Footprint Over Time (Cumulative)"
                             xAxisLabel="Date"
                             yAxisLabel="Cumulative Footprint Value (gCO₂)"
+                            valueKey="footprint"
+                            cumulativeValueKey="cumulative_footprint"
+                            modelKey="model"
+                            formatAsInteger={false}
+                            showBothValues={false}
                         />
                     )}
 

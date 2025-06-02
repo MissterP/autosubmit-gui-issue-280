@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn } from "../../services/utils";
 
@@ -10,8 +10,10 @@ const Histogram = ({
     maxBars = 10,
     onBarClick,
     className = "",
-    isPopularityMetric = false,
-    showAccumulated = false
+    valueKey = "count", // Key for the main value to display
+    cumulativeValueKey = "cumulative_count", // Key for cumulative value 
+    modelKey = "model", // Key for model identifier
+    formatAsInteger = true // Whether to format values as integers or floats
 }) => {
     const svgRef = useRef();
     const [sortedData, setSortedData] = useState([]);
@@ -19,42 +21,26 @@ const Histogram = ({
     
     useEffect(() => {
         if (data && data.length > 0) {
-            let processedData = [...data];
+            // Always use cumulative values when available, fallback to regular values
+            const processedData = data.map(item => ({
+                ...item,
+                [valueKey]: item[cumulativeValueKey] || item[valueKey] || 0
+            }));
             
-            if (showAccumulated) {
-                // Calculate accumulated values for each model
-                const modelTotals = {};
-                processedData.forEach(item => {
-                    const modelName = getModelName(item.model);
-                    const value = item.count || item.footprint || 0;
-                    modelTotals[modelName] = (modelTotals[modelName] || 0) + value;
-                });
-                
-                // Transform data to show accumulated values
-                processedData = Object.entries(modelTotals).map(([modelName, total]) => {
-                    const originalItem = data.find(item => getModelName(item.model) === modelName);
-                    return {
-                        ...originalItem,
-                        count: originalItem.count ? total : undefined,
-                        footprint: originalItem.footprint ? total : undefined
-                    };
-                });
-            }
-            
-            const sorted = processedData.sort((a, b) => (b.count || b.footprint || 0) - (a.count || a.footprint || 0));
+            const sorted = processedData.sort((a, b) => (b[valueKey] || 0) - (a[valueKey] || 0));
             setSortedData(sorted);
         }
-    }, [data, showAccumulated]);
+    }, [data, valueKey, cumulativeValueKey]);
 
     const formatValue = (value) => {
-        if (isPopularityMetric) {
+        if (formatAsInteger) {
             return Math.round(value).toString();
         }
         return value.toFixed(2);
     };
 
     const formatAxisLabel = (value) => {
-        if (isPopularityMetric) {
+        if (formatAsInteger) {
             return Math.round(value).toString();
         }
         return value.toFixed(1);
@@ -99,17 +85,17 @@ const Histogram = ({
 
         // Scales
         const xScale = d3.scaleLinear()
-            .domain([0, d3.max(displayData, d => d.count || d.footprint || 0)])
+            .domain([0, d3.max(displayData, d => d[valueKey] || 0)])
             .range([0, width]);
 
         const yScale = d3.scaleBand()
-            .domain(displayData.map(d => getModelName(d.model)))
+            .domain(displayData.map(d => getModelName(d[modelKey])))
             .range([0, height])
             .padding(0.1);
 
         // Color scale
         const colorScale = d3.scaleOrdinal()
-            .domain(displayData.map(d => getModelName(d.model)))
+            .domain(displayData.map(d => getModelName(d[modelKey])))
             .range(d3.schemeCategory10);
 
         // Create tooltip
@@ -119,15 +105,18 @@ const Histogram = ({
             .attr("class", "d3-tooltip")
             .style("position", "absolute")
             .style("visibility", "hidden")
-            .style("background-color", "rgba(0, 0, 0, 0.85)")
+            .style("background-color", "rgba(0, 0, 0, 0.9)")
             .style("color", "white")
-            .style("padding", "10px 14px")
-            .style("border-radius", "6px")
+            .style("padding", "12px 16px")
+            .style("border-radius", "8px")
             .style("font-size", "14px")
-            .style("font-weight", "bold")
+            .style("font-weight", "500")
             .style("pointer-events", "none")
-            .style("z-index", "1000")
-            .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+            .style("z-index", "9999")
+            .style("box-shadow", "0 4px 12px rgba(0,0,0,0.3)")
+            .style("border", "1px solid rgba(255,255,255,0.2)")
+            .style("max-width", "250px")
+            .style("line-height", "1.4");
 
         // Create bars
         g.selectAll(".bar")
@@ -135,20 +124,38 @@ const Histogram = ({
             .join("rect")
             .attr("class", "bar")
             .attr("x", 0)
-            .attr("y", d => yScale(getModelName(d.model)))
+            .attr("y", d => yScale(getModelName(d[modelKey])))
             .attr("height", yScale.bandwidth())
-            .attr("fill", d => colorScale(getModelName(d.model)))
+            .attr("fill", d => colorScale(getModelName(d[modelKey])))
             .style("cursor", "pointer")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("opacity", 0.8);
+                const modelName = getModelName(d[modelKey]);
+                const value = d[valueKey] || 0;
+                
                 tooltip
                     .style("visibility", "visible")
-                    .html(`${getModelName(d.model)}: ${formatValue(d.count || d.footprint || 0)}`);
+                    .html(`<div style="text-align: center;">
+                           <strong style="color: ${colorScale(modelName)};">${modelName}</strong><br/>
+                           <strong style="font-size: 16px;">Total Count: ${formatValue(value)}</strong>
+                           </div>`);
             })
             .on("mousemove", function(event) {
+                const tooltipWidth = 200;
+                let left = event.pageX + 15;
+                let top = event.pageY - 40;
+                
+                // Prevent tooltip from going off screen
+                if (left + tooltipWidth > window.innerWidth) {
+                    left = event.pageX - tooltipWidth - 15;
+                }
+                if (top < 0) {
+                    top = event.pageY + 15;
+                }
+                
                 tooltip
-                    .style("top", (event.pageY - 10) + "px")
-                    .style("left", (event.pageX + 10) + "px");
+                    .style("top", top + "px")
+                    .style("left", left + "px");
             })
             .on("mouseout", function() {
                 d3.select(this).style("opacity", 1);
@@ -160,20 +167,20 @@ const Histogram = ({
             .transition()
             .duration(800)
             .ease(d3.easeQuadOut)
-            .attr("width", d => xScale(d.count || d.footprint || 0));
+            .attr("width", d => xScale(d[valueKey] || 0));
 
         // Add value labels on bars
         g.selectAll(".bar-label")
             .data(displayData)
             .join("text")
             .attr("class", "bar-label")
-            .attr("x", d => xScale(d.count || d.footprint || 0) + 10) // Increased spacing
-            .attr("y", d => yScale(getModelName(d.model)) + yScale.bandwidth() / 2)
+            .attr("x", d => xScale(d[valueKey] || 0) + 10) // Increased spacing
+            .attr("y", d => yScale(getModelName(d[modelKey])) + yScale.bandwidth() / 2)
             .attr("dy", "0.35em")
             .style("font-size", "14px") // Larger font size
             .style("font-weight", "bold")
             .style("fill", "#374151")
-            .text(d => formatValue(d.count || d.footprint || 0))
+            .text(d => formatValue(d[valueKey] || 0))
             .style("opacity", 0)
             .transition()
             .duration(800)
@@ -183,7 +190,7 @@ const Histogram = ({
         // X-axis
         const xAxis = d3.axisBottom(xScale)
             .ticks(5) // Limit number of ticks to prevent overlapping
-            .tickFormat(d => isPopularityMetric ? Math.round(d) : d.toFixed(1));
+            .tickFormat(d => formatAxisLabel(d));
 
         g.append("g")
             .attr("class", "x-axis")
@@ -243,7 +250,7 @@ const Histogram = ({
             .style("stroke-width", 1)
             .style("opacity", 0.5);
 
-    }, [sortedData, displayCount, isPopularityMetric, formatValue, formatAxisLabel, handleBarClick]);
+    }, [sortedData, displayCount, valueKey, cumulativeValueKey, modelKey, formatValue, formatAxisLabel, handleBarClick]);
 
     if (!data || data.length === 0) {
         return (
@@ -287,4 +294,4 @@ const Histogram = ({
     );
 };
 
-export default Histogram;
+export default memo(Histogram);

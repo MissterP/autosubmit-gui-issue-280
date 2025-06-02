@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn } from "../../services/utils";
 
@@ -7,6 +7,11 @@ const LineChart = ({
     title, 
     xAxisLabel = "Date", 
     yAxisLabel = "Count",
+    valueKey = "count", // Key for the current value
+    cumulativeValueKey = "cumulative_count", // Key for cumulative value 
+    modelKey = "model", // Key for model identifier
+    formatAsInteger = true, // Whether to format values as integers or floats
+    showBothValues = false, // Whether to show both current and cumulative values
     modelFilter = [],
     onModelToggle,
     className = ""
@@ -20,6 +25,20 @@ const LineChart = ({
         if (!url) return 'Unknown';
         const parts = url.split('/');
         return parts[parts.length - 1] || 'Unknown';
+    };
+
+    const formatValue = (value) => {
+        if (formatAsInteger) {
+            return Math.round(value).toString();
+        }
+        return value.toFixed(2);
+    };
+
+    const formatAxisLabel = (value) => {
+        if (formatAsInteger) {
+            return Math.round(value).toString();
+        }
+        return value.toFixed(1);
     };
 
     const generateColor = (index) => {
@@ -41,8 +60,8 @@ const LineChart = ({
             // Collect all unique models and check for cumulative data
             dates.forEach(date => {
                 data[date].forEach(item => {
-                    modelSet.add(item.model);
-                    if (item.cumulative_count !== undefined || item.cumulative_footprint !== undefined) {
+                    modelSet.add(item[modelKey]);
+                    if (item[cumulativeValueKey] !== undefined) {
                         hasCumulativeData = true;
                     }
                 });
@@ -61,16 +80,37 @@ const LineChart = ({
             // Process data for chart
             const chartData = dates.map(date => {
                 const dayData = { date };
-                data[date].forEach(item => {
-                    // Use cumulative values if available, otherwise fallback to regular values
-                    dayData[item.model] = item.cumulative_count || item.cumulative_footprint || item.count || item.footprint || 0;
-                });
+                
+                if (showBothValues && hasCumulativeData) {
+                    // Store both current and cumulative values for dual-line mode
+                    data[date].forEach(item => {
+                        const currentValue = item[valueKey] || 0;
+                        const cumulativeValue = item[cumulativeValueKey] || currentValue;
+                        
+                        dayData[`current_${item[modelKey]}`] = currentValue;
+                        dayData[`cumulative_${item[modelKey]}`] = cumulativeValue;
+                    });
+                } else {
+                    // Store both current and cumulative values for tooltips, but display cumulative in chart
+                    data[date].forEach(item => {
+                        const currentValue = item[valueKey] || 0;
+                        const cumulativeValue = item[cumulativeValueKey] || currentValue;
+                        
+                        // Main value for chart display (use cumulative if available)
+                        dayData[item[modelKey]] = cumulativeValue;
+                        // Store current value for tooltip
+                        dayData[`current_${item[modelKey]}`] = currentValue;
+                        // Store cumulative value for tooltip
+                        dayData[`cumulative_${item[modelKey]}`] = cumulativeValue;
+                    });
+                }
+                
                 return dayData;
             });
             
             setProcessedData(chartData);
         }
-    }, [data]);
+    }, [data, valueKey, cumulativeValueKey, modelKey, showBothValues]);
 
     const handleModelToggle = (modelFullName) => {
         const newSelected = new Set(selectedModels);
@@ -90,7 +130,14 @@ const LineChart = ({
         processedData.forEach(item => {
             models.forEach(model => {
                 if (selectedModels.has(model.fullName)) {
-                    max = Math.max(max, item[model.fullName] || 0);
+                    if (showBothValues) {
+                        // Check both current and cumulative values
+                        max = Math.max(max, item[`current_${model.fullName}`] || 0);
+                        max = Math.max(max, item[`cumulative_${model.fullName}`] || 0);
+                    } else {
+                        // Use single value (cumulative if available)
+                        max = Math.max(max, item[model.fullName] || 0);
+                    }
                 }
             });
         });
@@ -143,15 +190,18 @@ const LineChart = ({
             .attr("class", "d3-line-tooltip")
             .style("position", "absolute")
             .style("visibility", "hidden")
-            .style("background-color", "rgba(0, 0, 0, 0.85)")
+            .style("background-color", "rgba(0, 0, 0, 0.9)")
             .style("color", "white")
-            .style("padding", "10px 14px")
-            .style("border-radius", "6px")
+            .style("padding", "12px 16px")
+            .style("border-radius", "8px")
             .style("font-size", "14px")
-            .style("font-weight", "bold")
+            .style("font-weight", "500")
             .style("pointer-events", "none")
-            .style("z-index", "1000")
-            .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+            .style("z-index", "9999")
+            .style("box-shadow", "0 4px 12px rgba(0,0,0,0.3)")
+            .style("border", "1px solid rgba(255,255,255,0.2)")
+            .style("max-width", "250px")
+            .style("line-height", "1.4");
 
         // Grid lines
         g.selectAll(".grid-line-x")
@@ -188,63 +238,250 @@ const LineChart = ({
         models.forEach(model => {
             if (!selectedModels.has(model.fullName)) return;
 
-            const modelData = parsedData.map(d => ({
-                date: d.date,
-                value: d[model.fullName] || 0
-            }));
+            if (showBothValues && model.hasCumulative) {
+                // Draw both current and cumulative lines
+                const currentData = parsedData.map(d => ({
+                    date: d.date,
+                    value: d[`current_${model.fullName}`] || 0
+                }));
 
-            // Draw line
-            g.append("path")
-                .datum(modelData)
-                .attr("class", `line-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
-                .attr("fill", "none")
-                .attr("stroke", model.color)
-                .attr("stroke-width", 2)
-                .attr("d", line)
-                .style("opacity", 0)
-                .transition()
-                .duration(800)
-                .style("opacity", 1);
+                const cumulativeData = parsedData.map(d => ({
+                    date: d.date,
+                    value: d[`cumulative_${model.fullName}`] || 0
+                }));
 
-            // Draw points
-            g.selectAll(`.point-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
-                .data(modelData)
-                .join("circle")
-                .attr("class", `point-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
-                .attr("cx", d => xScale(d.date))
-                .attr("cy", d => yScale(d.value))
-                .attr("r", 5) // Increased point size
-                .attr("fill", model.color)
-                .attr("stroke", "white")
-                .attr("stroke-width", 2)
-                .style("cursor", "pointer")
-                .style("opacity", 0)
-                .on("mouseover", function(event, d) {
-                    d3.select(this).attr("r", 8); // Larger point on hover
-                    
-                    // Check if current data has cumulative values
-                    const hasCumulativeData = models.length > 0 && models[0].hasCumulative;
-                    const valueLabel = hasCumulativeData ? "Cumulative Value" : "Current Value";
-                    
-                    tooltip
-                        .style("visibility", "visible")
-                        .html(`<strong>${model.name}</strong><br/>
-                               Date: ${d.date.toLocaleDateString()}<br/>
-                               ${valueLabel}: ${d.value.toFixed(2)}`);
-                })
-                .on("mousemove", function(event) {
-                    tooltip
-                        .style("top", (event.pageY - 10) + "px")
-                        .style("left", (event.pageX + 10) + "px");
-                })
-                .on("mouseout", function() {
-                    d3.select(this).attr("r", 5);
-                    tooltip.style("visibility", "hidden");
-                })
-                .transition()
-                .duration(800)
-                .delay(400)
-                .style("opacity", 1);
+                // Draw current values line (dashed)
+                g.append("path")
+                    .datum(currentData)
+                    .attr("class", `line-current-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("fill", "none")
+                    .attr("stroke", model.color)
+                    .attr("stroke-width", 2)
+                    .attr("stroke-dasharray", "4,4")
+                    .attr("d", line)
+                    .style("opacity", 0)
+                    .transition()
+                    .duration(800)
+                    .style("opacity", 1);
+
+                // Draw cumulative values line (solid)
+                g.append("path")
+                    .datum(cumulativeData)
+                    .attr("class", `line-cumulative-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("fill", "none")
+                    .attr("stroke", model.color)
+                    .attr("stroke-width", 2)
+                    .attr("d", line)
+                    .style("opacity", 0)
+                    .transition()
+                    .duration(800)
+                    .style("opacity", 1);
+
+                // Draw points for current values (smaller, outlined)
+                g.selectAll(`.point-current-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .data(currentData)
+                    .join("circle")
+                    .attr("class", `point-current-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("cx", d => xScale(d.date))
+                    .attr("cy", d => yScale(d.value))
+                    .attr("r", 3)
+                    .attr("fill", "white")
+                    .attr("stroke", model.color)
+                    .attr("stroke-width", 2)
+                    .style("cursor", "pointer")
+                    .style("opacity", 0)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this).attr("r", 5);
+                        const cumulativeValue = cumulativeData.find(cd => cd.date.getTime() === d.date.getTime())?.value || 0;
+                        const formattedDate = d.date.toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        
+                        tooltip
+                            .style("visibility", "visible")
+                            .html(`<div style="text-align: center;">
+                                   <strong style="color: ${model.color};">${model.name}</strong><br/>
+                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
+                                   <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Day Count: <strong>${formatValue(d.value)}</strong></span><br/>
+                                   <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Cumulative: <strong>${formatValue(cumulativeValue)}</strong></span>
+                                   </div>`);
+                    })
+                    .on("mousemove", function(event) {
+                        const tooltipWidth = 250;
+                        let left = event.pageX + 15;
+                        let top = event.pageY - 60;
+                        
+                        // Prevent tooltip from going off screen
+                        if (left + tooltipWidth > window.innerWidth) {
+                            left = event.pageX - tooltipWidth - 15;
+                        }
+                        if (top < 0) {
+                            top = event.pageY + 15;
+                        }
+                        
+                        tooltip
+                            .style("top", top + "px")
+                            .style("left", left + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("r", 3);
+                        tooltip.style("visibility", "hidden");
+                    })
+                    .transition()
+                    .duration(800)
+                    .delay(400)
+                    .style("opacity", 1);
+
+                // Draw points for cumulative values (larger, filled)
+                g.selectAll(`.point-cumulative-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .data(cumulativeData)
+                    .join("circle")
+                    .attr("class", `point-cumulative-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("cx", d => xScale(d.date))
+                    .attr("cy", d => yScale(d.value))
+                    .attr("r", 5)
+                    .attr("fill", model.color)
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 2)
+                    .style("cursor", "pointer")
+                    .style("opacity", 0)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this).attr("r", 8);
+                        const currentValue = currentData.find(cd => cd.date.getTime() === d.date.getTime())?.value || 0;
+                        const formattedDate = d.date.toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        
+                        tooltip
+                            .style("visibility", "visible")
+                            .html(`<div style="text-align: center;">
+                                   <strong style="color: ${model.color};">${model.name}</strong><br/>
+                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
+                                   <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Day Count: <strong>${formatValue(currentValue)}</strong></span><br/>
+                                   <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Cumulative: <strong>${formatValue(d.value)}</strong></span>
+                                   </div>`);
+                    })
+                    .on("mousemove", function(event) {
+                        const tooltipWidth = 250;
+                        let left = event.pageX + 15;
+                        let top = event.pageY - 60;
+                        
+                        // Prevent tooltip from going off screen
+                        if (left + tooltipWidth > window.innerWidth) {
+                            left = event.pageX - tooltipWidth - 15;
+                        }
+                        if (top < 0) {
+                            top = event.pageY + 15;
+                        }
+                        
+                        tooltip
+                            .style("top", top + "px")
+                            .style("left", left + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("r", 5);
+                        tooltip.style("visibility", "hidden");
+                    })
+                    .transition()
+                    .duration(800)
+                    .delay(400)
+                    .style("opacity", 1);
+            } else {
+                // Single line mode (cumulative values if available)
+                const modelData = parsedData.map(d => ({
+                    date: d.date,
+                    value: d[model.fullName] || 0
+                }));
+
+                // Draw line
+                g.append("path")
+                    .datum(modelData)
+                    .attr("class", `line-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("fill", "none")
+                    .attr("stroke", model.color)
+                    .attr("stroke-width", 2)
+                    .attr("d", line)
+                    .style("opacity", 0)
+                    .transition()
+                    .duration(800)
+                    .style("opacity", 1);
+
+                // Draw points
+                g.selectAll(`.point-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .data(modelData)
+                    .join("circle")
+                    .attr("class", `point-${model.fullName.replace(/[^a-zA-Z0-9]/g, '-')}`)
+                    .attr("cx", d => xScale(d.date))
+                    .attr("cy", d => yScale(d.value))
+                    .attr("r", 5)
+                    .attr("fill", model.color)
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 2)
+                    .style("cursor", "pointer")
+                    .style("opacity", 0)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this).attr("r", 8);
+                        
+                        const formattedDate = d.date.toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        
+                        // Get current and cumulative values for this date
+                        const currentValueKey = `current_${model.fullName}`;
+                        const dateData = parsedData.find(pd => pd.date.getTime() === d.date.getTime());
+                        const currentValue = dateData ? (dateData[currentValueKey] || 0) : 0;
+                        const cumulativeValue = d.value; // This is the cumulative value being displayed
+                        
+                        tooltip
+                            .style("visibility", "visible")
+                            .html(`<div style="text-align: center;">
+                                   <strong style="color: ${model.color};">${model.name}</strong><br/>
+                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
+                                   <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Day Count: <strong>${formatValue(currentValue)}</strong></span><br/>
+                                   <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
+                                   Cumulative: <strong>${formatValue(cumulativeValue)}</strong></span>
+                                   </div>`);
+                    })
+                    .on("mousemove", function(event) {
+                        const tooltipWidth = 250;
+                        let left = event.pageX + 15;
+                        let top = event.pageY - 40;
+                        
+                        // Prevent tooltip from going off screen
+                        if (left + tooltipWidth > window.innerWidth) {
+                            left = event.pageX - tooltipWidth - 15;
+                        }
+                        if (top < 0) {
+                            top = event.pageY + 15;
+                        }
+                        
+                        tooltip
+                            .style("top", top + "px")
+                            .style("left", left + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("r", 5);
+                        tooltip.style("visibility", "hidden");
+                    })
+                    .transition()
+                    .duration(800)
+                    .delay(400)
+                    .style("opacity", 1);
+            }
         });
 
         // X-axis
@@ -265,9 +502,24 @@ const LineChart = ({
             .attr("dy", ".15em")
             .attr("transform", "rotate(-45)"); // Reduced rotation angle for better readability
 
-        // Y-axis
+        // Y-axis with intelligent tick calculation to avoid duplicates
+        const yMaxValue = yScale.domain()[1];
+        let yAxisTickCount;
+        
+        if (formatAsInteger && yMaxValue <= 10) {
+            // For small integer values, use exactly the number of unique integers
+            yAxisTickCount = Math.min(Math.ceil(yMaxValue) + 1, yMaxValue <= 5 ? yMaxValue + 1 : 6);
+        } else if (formatAsInteger && yMaxValue <= 50) {
+            // For medium integer values, use fewer ticks to avoid crowding
+            yAxisTickCount = Math.min(6, Math.ceil(yMaxValue / 5));
+        } else {
+            // For larger values or float values, use default
+            yAxisTickCount = 8;
+        }
+
         const yAxis = d3.axisLeft(yScale)
-            .ticks(8); // Control number of ticks on Y axis
+            .ticks(yAxisTickCount)
+            .tickFormat(d => formatAxisLabel(d));
 
         g.append("g")
             .attr("class", "y-axis")
@@ -299,7 +551,57 @@ const LineChart = ({
             .style("fill", "#374151")
             .text(yAxisLabel);
 
-    }, [processedData, models, selectedModels, xAxisLabel, yAxisLabel]);
+        // Add legend for dual-line mode
+        if (showBothValues && models.some(m => m.hasCumulative && selectedModels.has(m.fullName))) {
+            const legend = g.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${width - 150}, 20)`);
+
+            // Cumulative line legend item
+            const cumulativeLegend = legend.append("g")
+                .attr("class", "legend-item")
+                .attr("transform", "translate(0, 0)");
+
+            cumulativeLegend.append("line")
+                .attr("x1", 0)
+                .attr("x2", 20)
+                .attr("y1", 0)
+                .attr("y2", 0)
+                .style("stroke", "#666")
+                .style("stroke-width", 2);
+
+            cumulativeLegend.append("text")
+                .attr("x", 25)
+                .attr("y", 0)
+                .attr("dy", "0.35em")
+                .style("font-size", "12px")
+                .style("fill", "#374151")
+                .text("Cumulative");
+
+            // Current line legend item
+            const currentLegend = legend.append("g")
+                .attr("class", "legend-item")
+                .attr("transform", "translate(0, 20)");
+
+            currentLegend.append("line")
+                .attr("x1", 0)
+                .attr("x2", 20)
+                .attr("y1", 0)
+                .attr("y2", 0)
+                .style("stroke", "#666")
+                .style("stroke-width", 2)
+                .style("stroke-dasharray", "4,4");
+
+            currentLegend.append("text")
+                .attr("x", 25)
+                .attr("y", 0)
+                .attr("dy", "0.35em")
+                .style("font-size", "12px")
+                .style("fill", "#374151")
+                .text("Day Count");
+        }
+
+    }, [processedData, models, selectedModels, showBothValues, xAxisLabel, yAxisLabel]);
 
     if (!data || Object.keys(data).length === 0) {
         return (
@@ -317,23 +619,23 @@ const LineChart = ({
             <h3 className="text-lg font-semibold text-dark dark:text-light mb-6">{title}</h3>
             
             {/* Model Selection Checkboxes */}
-            <div className="mb-8 p-4 bg-gray-50 dark:bg-neutral-600 rounded-lg">
-                <h4 className="text-sm font-semibold text-dark dark:text-light mb-3">Select Models to Display:</h4>
-                <div className="flex flex-wrap gap-4">
+            <div className="mb-8 p-6 bg-gray-50 dark:bg-neutral-600 rounded-lg border-2 border-gray-200 dark:border-neutral-500">
+                <h4 className="text-lg font-semibold text-dark dark:text-light mb-4">Select Models to Display:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {models.map(model => (
-                        <label key={model.fullName} className="flex items-center gap-2 cursor-pointer">
+                        <label key={model.fullName} className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-500 transition-colors border border-gray-200 dark:border-neutral-500">
                             <input
                                 type="checkbox"
                                 checked={selectedModels.has(model.fullName)}
                                 onChange={() => handleModelToggle(model.fullName)}
-                                className="form-checkbox h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
+                                className="form-checkbox h-5 w-5 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
                             />
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div 
-                                    className="w-4 h-4 rounded border border-gray-300" 
+                                    className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-400 flex-shrink-0" 
                                     style={{ backgroundColor: model.color }}
                                 ></div>
-                                <span className="text-sm text-dark dark:text-light font-medium">
+                                <span className="text-sm text-dark dark:text-light font-medium truncate" title={model.name}>
                                     {model.name}
                                 </span>
                             </div>
@@ -341,19 +643,25 @@ const LineChart = ({
                     ))}
                 </div>
                 {models.length > 0 && (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-4 flex gap-3 pt-4 border-t border-gray-200 dark:border-neutral-500">
                         <button
                             onClick={() => setSelectedModels(new Set(models.map(m => m.fullName)))}
-                            className="text-xs px-3 py-1 bg-primary text-white rounded hover:bg-secondary transition-colors"
+                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-secondary transition-colors font-medium text-sm"
                         >
+                            <i className="fa-solid fa-check-double mr-2"></i>
                             Select All
                         </button>
                         <button
                             onClick={() => setSelectedModels(new Set())}
-                            className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium text-sm"
                         >
+                            <i className="fa-solid fa-times mr-2"></i>
                             Deselect All
                         </button>
+                        <div className="ml-auto flex items-center text-sm text-gray-600 dark:text-gray-300">
+                            <i className="fa-solid fa-info-circle mr-2"></i>
+                            {selectedModels.size} of {models.length} models selected
+                        </div>
                     </div>
                 )}
             </div>
@@ -377,4 +685,4 @@ const LineChart = ({
     );
 };
 
-export default LineChart;
+export default memo(LineChart);

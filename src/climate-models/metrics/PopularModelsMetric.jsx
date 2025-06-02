@@ -18,6 +18,7 @@ const PopularModelsMetric = () => {
     const [view, setView] = useState("aggregated"); // "aggregated" or "historical"
     const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [limit, setLimit] = useState(10); // Limit for aggregated data
     const [selectedExperiments, setSelectedExperiments] = useState([]);
     const [showExperiments, setShowExperiments] = useState(false);
     const [dateSearchQuery, setDateSearchQuery] = useState("");
@@ -29,7 +30,7 @@ const PopularModelsMetric = () => {
         data: aggregatedData, 
         isFetching: isAggregatedFetching, 
         isError: isAggregatedError 
-    } = useGetPopularModelsAggregatedQuery({ limit: 20 });
+    } = useGetPopularModelsAggregatedQuery({ limit });
 
     const { 
         data: historicalData, 
@@ -140,6 +141,24 @@ const PopularModelsMetric = () => {
                         </button>
                     </div>
 
+                    {view === "aggregated" && (
+                        <div className="flex items-center gap-4 ml-auto">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium">Show top:</label>
+                                <select
+                                    value={limit}
+                                    onChange={(e) => setLimit(Number(e.target.value))}
+                                    className="form-select text-sm border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-dark dark:text-light rounded"
+                                >
+                                    <option value={5}>5 models</option>
+                                    <option value={10}>10 models</option>
+                                    <option value={15}>15 models</option>
+                                    <option value={20}>20 models</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     {view === "historical" && (
                         <div className="flex items-center gap-4 ml-auto">
                             <div className="flex items-center gap-2">
@@ -185,11 +204,14 @@ const PopularModelsMetric = () => {
                     {aggregatedData?.models && (
                         <Histogram
                             data={aggregatedData.models}
-                            title="Model Usage (Total Count)"
+                            title={`Model Usage (Top ${limit} Models)`}
                             xAxisLabel="Climate Models"
                             yAxisLabel="Number of Experiments"
-                            maxBars={10}
-                            isPopularityMetric={true}
+                            maxBars={limit}
+                            valueKey="count"
+                            cumulativeValueKey="cumulative_count"
+                            modelKey="model"
+                            formatAsInteger={true}
                         />
                     )}
                 </div>
@@ -217,6 +239,11 @@ const PopularModelsMetric = () => {
                             title="Model Usage Over Time (Cumulative)"
                             xAxisLabel="Date"
                             yAxisLabel="Cumulative Experiments Count"
+                            valueKey="count"
+                            cumulativeValueKey="cumulative_count"
+                            modelKey="model"
+                            formatAsInteger={true}
+                            showBothValues={false}
                         />
                     )}
 
