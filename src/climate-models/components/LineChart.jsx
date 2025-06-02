@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
-import { cn } from "../../services/utils";
+import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
 
 const LineChart = ({ 
     data, 
@@ -625,7 +625,7 @@ const LineChart = ({
                                     className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-400 flex-shrink-0" 
                                     style={{ backgroundColor: model.color }}
                                 ></div>
-                                <span className="text-sm text-dark dark:text-light font-bold truncate" title={model.name}>
+                                <span className="text-base text-dark dark:text-light font-bold truncate" title={model.name}>
                                     {model.name}
                                 </span>
                             </div>
@@ -656,11 +656,33 @@ const LineChart = ({
                 )}
             </div>
             
-            {/* Chart Container */}
+            {/* Chart Container with Download Buttons */}
             {processedData.length > 0 && selectedModels.size > 0 ? (
-                <div className="overflow-x-auto w-full">
-                    <div className="min-w-full" style={{ minHeight: '600px' }}>
-                        <svg ref={svgRef} width="100%" height="100%"></svg>
+                <div className="w-full">
+                    {/* Download Buttons - positioned above chart */}
+                    <div className='flex justify-end gap-2 mb-4'>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGObj(svgRef.current, `${title || 'line-chart'}.svg`)}
+                            title="Download Chart as SVG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">SVG</span>
+                        </button>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGAsPNG(svgRef.current, `${title || 'line-chart'}.png`)}
+                            title="Download Chart as PNG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">PNG</span>
+                        </button>
+                    </div>
+                    {/* Chart */}
+                    <div className="overflow-x-auto w-full">
+                        <div className="min-w-full" style={{ minHeight: '600px' }}>
+                            <svg ref={svgRef} width="100%" height="100%"></svg>
+                        </div>
                     </div>
                 </div>
             ) : (

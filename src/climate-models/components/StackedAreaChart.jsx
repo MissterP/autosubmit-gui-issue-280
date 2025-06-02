@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
-import { cn } from "../../services/utils";
+import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
 
 const StackedAreaChart = ({ 
     data, 
@@ -314,9 +314,28 @@ const StackedAreaChart = ({
             .attr("dy", ".15em")
             .attr("transform", "rotate(-45)");
 
-        // Y-axis - matching LineChart styling
+        // Y-axis with intelligent tick calculation to avoid duplicates
+        const yMaxValue = yScale.domain()[1];
+        let yAxisTickCount;
+        
+        if (formatAsInteger && yMaxValue <= 10) {
+            // For small integer values, use exactly the number of unique integers
+            yAxisTickCount = Math.min(Math.ceil(yMaxValue) + 1, yMaxValue <= 5 ? yMaxValue + 1 : 6);
+        } else if (formatAsInteger && yMaxValue <= 50) {
+            // For medium integer values, use fewer ticks to avoid crowding
+            yAxisTickCount = Math.min(6, Math.ceil(yMaxValue / 5));
+        } else {
+            // For larger values or float values, use default
+            yAxisTickCount = 8;
+        }
+
+        const yAxis = d3.axisLeft(yScale)
+            .ticks(yAxisTickCount)
+            .tickFormat(formatAxisLabel);
+
         g.append("g")
-            .call(d3.axisLeft(yScale).tickFormat(formatAxisLabel))
+            .attr("class", "y-axis")
+            .call(yAxis)
             .selectAll("text")
             .style("font-size", "14px")
             .style("font-weight", "bold")
@@ -381,7 +400,7 @@ const StackedAreaChart = ({
                                     className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-400 flex-shrink-0" 
                                     style={{ backgroundColor: model.color }}
                                 ></div>
-                                <span className="text-sm text-dark dark:text-light font-bold truncate" title={model.name}>
+                                <span className="text-base text-dark dark:text-light font-bold truncate" title={model.name}>
                                     {model.name}
                                 </span>
                             </div>
@@ -412,11 +431,33 @@ const StackedAreaChart = ({
                 )}
             </div>
             
-            {/* Chart Container */}
+            {/* Chart Container with Download Buttons */}
             {processedData.length > 0 && selectedModels.size > 0 ? (
-                <div className="overflow-x-auto w-full">
-                    <div className="min-w-full" style={{ minHeight: '720px' }}>
-                        <svg ref={svgRef} width="100%" height="100%"></svg>
+                <div className="w-full">
+                    {/* Download Buttons - positioned above chart */}
+                    <div className='flex justify-end gap-2 mb-4'>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGObj(svgRef.current, `${title || 'stacked-area-chart'}.svg`)}
+                            title="Download Chart as SVG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">SVG</span>
+                        </button>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGAsPNG(svgRef.current, `${title || 'stacked-area-chart'}.png`)}
+                            title="Download Chart as PNG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">PNG</span>
+                        </button>
+                    </div>
+                    {/* Chart */}
+                    <div className="overflow-x-auto w-full">
+                        <div className="min-w-full" style={{ minHeight: '720px' }}>
+                            <svg ref={svgRef} width="100%" height="100%"></svg>
+                        </div>
                     </div>
                 </div>
             ) : (

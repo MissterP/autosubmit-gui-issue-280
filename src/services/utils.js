@@ -42,6 +42,38 @@ export const saveSVGObj = (svgData, filename) => {
   triggerDownload(svgUrl, filename)
 }
 
+export const saveSVGAsPNG = (svgElement, filename, scale = 2) => {
+  const svgString = (new XMLSerializer()).serializeToString(svgElement);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  
+  // Get SVG dimensions
+  const svgRect = svgElement.getBoundingClientRect();
+  canvas.width = svgRect.width * scale;
+  canvas.height = svgRect.height * scale;
+  
+  img.onload = function() {
+    // Set white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the SVG image
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
+    // Convert to PNG and download
+    canvas.toBlob(function(blob) {
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, filename);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
+  
+  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  img.src = url;
+}
+
 
 export const STATUS_STYLES = {
   "UNKNOWN": {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
-import { cn } from "../../services/utils";
+import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
 
 const Histogram = ({ 
     data, 
@@ -285,11 +285,42 @@ const Histogram = ({
                 )}
             </div>
             
-            <div className="overflow-x-auto">
-                <div className="min-w-full" style={{ minHeight: '600px' }}>
-                    <svg ref={svgRef} width="100%" height="100%"></svg>
+            {/* Chart and Download Buttons - only show when there's data */}
+            {sortedData.length > 0 ? (
+                <div className="w-full">
+                    {/* Download Buttons - positioned above chart */}
+                    <div className='flex justify-end gap-2 mb-4'>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGObj(svgRef.current, `${title || 'histogram'}.svg`)}
+                            title="Download Chart as SVG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">SVG</span>
+                        </button>
+                        <button 
+                            className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
+                            onClick={() => svgRef.current && saveSVGAsPNG(svgRef.current, `${title || 'histogram'}.png`)}
+                            title="Download Chart as PNG"
+                        >
+                            <i className="fa-solid fa-download text-gray-700 dark:text-gray-300"></i>
+                            <span className="ml-1 text-xs">PNG</span>
+                        </button>
+                    </div>
+                    
+                    {/* Chart */}
+                    <div className="overflow-x-auto">
+                        <div className="min-w-full" style={{ minHeight: '600px' }}>
+                            <svg ref={svgRef} width="100%" height="100%"></svg>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="text-center py-12 bg-gray-50 dark:bg-neutral-600 rounded-lg">
+                    <i className="fa-solid fa-chart-bar text-4xl text-gray-400 mb-4"></i>
+                    <p className="text-gray-500 dark:text-gray-400">No data to display</p>
+                </div>
+            )}
         </div>
     );
 };
