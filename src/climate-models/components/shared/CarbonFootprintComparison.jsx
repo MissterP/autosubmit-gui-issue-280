@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { formatNumberMoney } from "../../../components/context/utils";
 
 // Equivalencies based on Uber's methodology and standard conversion factors
 const CARBON_EQUIVALENTS = [
@@ -90,9 +91,9 @@ const CarbonEquivalentCard = ({ equivalent, footprintGrams }) => {
     const formatAmount = (amount) => {
         if (amount < 0.01) return amount.toExponential(2);
         if (amount < 1) return amount.toFixed(3);
-        if (amount < 100) return amount.toFixed(2);
-        if (amount < 1000) return amount.toFixed(1);
-        return Math.round(amount).toLocaleString();
+        if (amount < 100) return formatNumberMoney(amount, false, 2);
+        if (amount < 1000) return formatNumberMoney(amount, false, 1);
+        return formatNumberMoney(Math.round(amount), true);
     };
 
     const getEquivalentText = () => {
@@ -123,7 +124,7 @@ const CarbonEquivalentCard = ({ equivalent, footprintGrams }) => {
                     {getEquivalentText()}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {equivalent.gCO2_per_unit.toLocaleString()} gCO₂ per {equivalent.unit}
+                    {formatNumberMoney(equivalent.gCO2_per_unit, true)} gCO₂ per {equivalent.unit}
                 </div>
             </div>
         </div>

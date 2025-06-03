@@ -31,7 +31,7 @@ const ChartViewContainer = ({
     chartProps
 }) => {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* View Toggle */}
             <div className="bg-white dark:bg-neutral-700 rounded-lg p-4 border border-gray-200 dark:border-neutral-600">
                 <div className="flex items-center gap-4">

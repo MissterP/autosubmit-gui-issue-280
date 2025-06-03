@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
+import { formatNumberMoney } from "../../components/context/utils";
 
 const Histogram = ({ 
     data, 
@@ -34,16 +35,16 @@ const Histogram = ({
 
     const formatValue = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(2);
+        return formatNumberMoney(value, false, 2);
     };
 
     const formatAxisLabel = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(1);
+        return formatNumberMoney(value, false, 1);
     };
 
     const getModelName = (url) => {
@@ -69,7 +70,7 @@ const Histogram = ({
         const containerWidth = svgRef.current.parentElement.clientWidth || 800;
         
         // Dimensions and margins - adjusted for better display
-        const margin = { top: 30, right: 80, bottom: 100, left: 180 };
+        const margin = { top: 30, right: 80, bottom: 100, left: 240 };
         const width = Math.max(containerWidth - margin.left - margin.right, 600);
         
         // Calculate height based on number of bars and ensure minimum height
@@ -210,11 +211,11 @@ const Histogram = ({
             .attr("class", "y-axis")
             .call(yAxis)
             .selectAll("text")
-            .style("font-size", "16px") // Increased font size
+            .style("font-size", "14px") // Reduced font size to prevent overlap
             .style("font-weight", "bold")
             .style("fill", "#374151")
             .style("text-anchor", "end") // Right alignment for better readability
-            .attr("dx", "-0.8em"); // More space between text and axis
+            .attr("dx", "-1.2em"); // Increased space between text and axis
 
         // X-axis label
         g.append("text")
@@ -230,7 +231,7 @@ const Histogram = ({
         g.append("text")
             .attr("class", "y-axis-label")
             .attr("transform", "rotate(-90)")
-            .attr("y", 0 - margin.left + 20)
+            .attr("y", 0 - margin.left + 40)
             .attr("x", 0 - (height / 2))
             .style("text-anchor", "middle")
             .style("font-size", "16px")
@@ -265,8 +266,8 @@ const Histogram = ({
     }
 
     return (
-        <div className={cn("bg-white dark:bg-neutral-700 rounded-lg p-6 border border-gray-200 dark:border-neutral-600", className)}>
-            <div className="mb-6 flex justify-between items-center">
+        <div className={cn("bg-white dark:bg-neutral-700 rounded-lg p-4 border border-gray-200 dark:border-neutral-600", className)}>
+            <div className="mb-3 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-dark dark:text-light">{title}</h3>
                 {sortedData.length > maxBars && (
                     <div className="flex items-center gap-2">
@@ -290,7 +291,7 @@ const Histogram = ({
             {sortedData.length > 0 ? (
                 <div className="w-full">
                     {/* Download Buttons - positioned above chart */}
-                    <div className='flex justify-end gap-2 mb-4'>
+                    <div className='flex justify-end gap-2 mb-2'>
                         <button 
                             className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
                             onClick={() => svgRef.current && saveSVGObj(svgRef.current, `${title || 'histogram'}.svg`)}

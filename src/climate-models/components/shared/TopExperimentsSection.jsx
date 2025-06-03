@@ -1,5 +1,6 @@
 import { DotLoader } from "../../../common/Loaders";
 import CarbonFootprintComparison from "./CarbonFootprintComparison";
+import { formatNumberMoney } from "../../../components/context/utils";
 
 const TopExperimentsSection = ({ 
     data, 
@@ -56,7 +57,10 @@ const TopExperimentsSection = ({
 
     const formatFootprint = (value) => {
         if (!value || isNaN(value)) return '0.00';
-        return value.toFixed(2);
+        // Convert to number if it's a string and ensure proper formatting
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '0.00';
+        return formatNumberMoney(numValue, false, 2);
     };
 
     // Calculate total footprint across all models
@@ -150,7 +154,7 @@ const TopExperimentsSection = ({
                                                         <div className="flex items-center gap-2">
                                                             <i className="fa-solid fa-tasks text-purple-500 text-sm"></i>
                                                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                                {experiment.job_count} jobs
+                                                                {formatNumberMoney(experiment.job_count, true)} jobs
                                                             </span>
                                                         </div>
                                                     )}

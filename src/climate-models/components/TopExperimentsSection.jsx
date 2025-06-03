@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DotLoader } from "../../common/Loaders";
 import CarbonFootprintComparison from "./shared/CarbonFootprintComparison";
+import { formatNumberMoney } from "../../components/context/utils";
 
 const TopExperimentsSection = ({ 
     data, 
@@ -60,11 +61,13 @@ const TopExperimentsSection = ({
 
     const formatFootprint = (value) => {
         if (!value || isNaN(value)) return '0.00';
-        return value.toFixed(2);
+        // Convert to number if it's a string and ensure proper formatting
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '0.00';
+        return formatNumberMoney(numValue, false, 2);
     };
 
     const getExperimentName = (experimentName) => {
-        console.log('Experiment name received:', experimentName); // Debug log
         if (!experimentName) return 'Unknown Experiment';
         return experimentName;
     };
@@ -96,13 +99,6 @@ const TopExperimentsSection = ({
     const totalFootprint = data.models.reduce((total, model) => {
         return total + (model.footprint || 0);
     }, 0);
-
-    console.log('TopExperimentsSection Debug:', {
-        modelsCount: data.models.length,
-        modelsWithFootprint: data.models.filter(m => m.footprint > 0).length,
-        totalFootprint,
-        sampleModel: data.models[0]
-    });
 
     return (
         <div className="space-y-6">

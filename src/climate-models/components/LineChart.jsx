@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
+import { formatNumberMoney } from "../../components/context/utils";
 
 const LineChart = ({ 
     data, 
@@ -29,16 +30,16 @@ const LineChart = ({
 
     const formatValue = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(2);
+        return formatNumberMoney(value, false, 2);
     };
 
     const formatAxisLabel = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(1);
+        return formatNumberMoney(value, false, 1);
     };
 
     const generateColor = (index) => {
@@ -436,10 +437,19 @@ const LineChart = ({
                         const lastDate = parsedData[parsedData.length - 1];
                         const lastCumulativeValue = lastDate ? (lastDate[`cumulative_${model.fullName}`] || 0) : 0;
                         
+                        // Format the date for display
+                        const formattedDate = d.date.toLocaleDateString('es-ES', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        
                         tooltip
                             .style("visibility", "visible")
                             .html(`<div style="text-align: center;">
                                    <strong style="color: ${model.color};">${model.name}</strong><br/>
+                                   <span style="opacity: 0.9;">${formattedDate}</span><br/>
                                    <span style="border: 2px dashed ${model.color}; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
                                    Day Count: <strong>${formatValue(currentValue)}</strong></span><br/>
                                    <span style="background: ${model.color}; color: white; padding: 2px 4px; border-radius: 4px; display: inline-block; margin: 2px;">
@@ -476,7 +486,7 @@ const LineChart = ({
 
         // X-axis
         const xAxis = d3.axisBottom(xScale)
-            .tickFormat(d3.timeFormat("%m/%d"))
+            .tickFormat(d3.timeFormat("%d/%m/%y"))
             .tickValues(parsedData.map(d => d.date)); // Use only actual data dates
 
         g.append("g")

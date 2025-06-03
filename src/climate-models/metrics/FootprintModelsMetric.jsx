@@ -124,7 +124,7 @@ const FootprintModelsMetric = () => {
     // Historical data section configuration
     const itemDisplayConfig = {
         searchLabel: "Search Simulation Jobs",
-        searchPlaceholder: "Search experiments/jobs (e.g., a395, experiment name, etc.)",
+        searchPlaceholder: "Search SIM jobs (e.g., a395, SIM job name, etc.)",
         itemIdKey: "simJobId",
         itemNameKey: "modelName",
         gridTitle: "Simulation Jobs for",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
+import { formatNumberMoney } from "../../components/context/utils";
 
 const StackedAreaChart = ({ 
     data, 
@@ -28,16 +29,16 @@ const StackedAreaChart = ({
 
     const formatValue = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(2);
+        return formatNumberMoney(value, false, 2);
     };
 
     const formatAxisLabel = (value) => {
         if (formatAsInteger) {
-            return Math.round(value).toString();
+            return formatNumberMoney(Math.round(value), true);
         }
-        return value.toFixed(1);
+        return formatNumberMoney(value, false, 1);
     };
 
     const generateColor = (index) => {
@@ -302,7 +303,7 @@ const StackedAreaChart = ({
         g.append("g")
             .attr("transform", `translate(0,${height})`)
             .call(d3.axisBottom(xScale)
-                .tickFormat(d3.timeFormat("%m/%d"))
+                .tickFormat(d3.timeFormat("%d/%m/%y"))
                 .tickValues(filteredData.map(d => d.date))) // Use only actual data dates
             .selectAll("text")
             .style("font-size", "14px")
@@ -379,14 +380,14 @@ const StackedAreaChart = ({
     }
 
     return (
-        <div className={cn("bg-white dark:bg-neutral-700 rounded-lg p-6 border border-gray-200 dark:border-neutral-600", className)}>
-            <div className="mb-6">
+        <div className={cn("bg-white dark:bg-neutral-700 rounded-lg p-4 border border-gray-200 dark:border-neutral-600", className)}>
+            <div className="mb-3">
                 <h3 className="text-lg font-semibold text-dark dark:text-light">{title}</h3>
                 
             </div>
             
             {/* Model Selection Checkboxes */}
-            <div className="mb-8 p-6 bg-gray-50 dark:bg-neutral-600 rounded-lg border-2 border-gray-200 dark:border-neutral-500">
+            <div className="mb-4 p-4 bg-gray-50 dark:bg-neutral-600 rounded-lg border-2 border-gray-200 dark:border-neutral-500">
                 <h4 className="text-lg font-semibold text-dark dark:text-light mb-4">Select Models to Display:</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {models.map(model => (
@@ -437,7 +438,7 @@ const StackedAreaChart = ({
             {processedData.length > 0 && selectedModels.size > 0 ? (
                 <div className="w-full">
                     {/* Download Buttons - positioned above chart */}
-                    <div className='flex justify-end gap-2 mb-4'>
+                    <div className='flex justify-end gap-2 mb-2'>
                         <button 
                             className='btn btn-sm bg-white dark:bg-neutral-700 border border-gray-300 dark:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-600 transition-colors'
                             onClick={() => svgRef.current && saveSVGObj(svgRef.current, `${title || 'stacked-area-chart'}.svg`)}

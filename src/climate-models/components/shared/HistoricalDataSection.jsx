@@ -26,7 +26,7 @@ const HistoricalDataSection = ({
     itemDisplayConfig,
     
     // Optional pagination override
-    itemsPerPage = 20
+    itemsPerPage = 9
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -44,9 +44,11 @@ const HistoricalDataSection = ({
 
     return (
         <div className="bg-white dark:bg-neutral-700 rounded-lg p-6 border border-gray-200 dark:border-neutral-600">
-            <h3 className="text-lg font-semibold text-dark dark:text-light mb-4">
-                View {itemDisplayConfig.gridTitle} Date
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-dark dark:text-light">
+                    View {itemDisplayConfig.gridTitle} by Date
+                </h3>
+            </div>
             
             {/* Search Controls */}
             <div className="mb-4 space-y-3">
@@ -58,7 +60,7 @@ const HistoricalDataSection = ({
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Search dates (e.g., 2024-01-15, Jan 15, etc.)"
+                                placeholder="Search dates (e.g., 15-01-2025, etc.)"
                                 value={dateSearchQuery}
                                 onChange={(e) => setDateSearchQuery(e.target.value)}
                                 className="form-input w-full pl-10"
@@ -109,8 +111,8 @@ const HistoricalDataSection = ({
                         const searchLower = dateSearchQuery.toLowerCase();
                         const dateStr = date.toLowerCase();
                         const formattedDate = new Date(date).toLocaleDateString().toLowerCase();
-                        const monthName = new Date(date).toLocaleDateString('en-US', { month: 'long' }).toLowerCase();
-                        const shortMonth = new Date(date).toLocaleDateString('en-US', { month: 'short' }).toLowerCase();
+                        const monthName = new Date(date).toLocaleDateString('es-ES', { month: 'long' }).toLowerCase();
+                        const shortMonth = new Date(date).toLocaleDateString('es-ES', { month: 'short' }).toLowerCase();
                         
                         return dateStr.includes(searchLower) || 
                                formattedDate.includes(searchLower) ||
@@ -128,7 +130,11 @@ const HistoricalDataSection = ({
                                     : "bg-primary text-white hover:bg-secondary"
                             )}
                         >
-                            {new Date(date).toLocaleDateString('es-ES')}
+                            {new Date(date).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                            })}
                         </button>
                     ))}
             </div>
@@ -171,7 +177,11 @@ const HistoricalDataSection = ({
                             })()}
                             
                             <h4 className="font-medium text-dark dark:text-light">
-                                {itemDisplayConfig.gridTitle} {new Date(selectedDate).toLocaleDateString('es-ES')}
+                                {itemDisplayConfig.gridTitle} {new Date(selectedDate).toLocaleDateString('es-ES', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                })}
                                 {itemSearchQuery && ` (filtered)`} ({(() => {
                                     const filteredItems = selectedItems.filter(item => {
                                         if (!itemSearchQuery) return true;
