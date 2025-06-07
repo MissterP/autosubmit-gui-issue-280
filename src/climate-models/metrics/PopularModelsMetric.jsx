@@ -5,6 +5,7 @@ import { useGetPopularModelsAggregatedQuery, useGetPopularModelsHistoricalQuery 
 import MetricPageHeader from "../components/shared/MetricPageHeader";
 import ChartViewContainer from "../components/shared/ChartViewContainer";
 import HistoricalDataSection from "../components/shared/HistoricalDataSection";
+import { extractModelName } from '../../services/utils';
 
 const PopularModelsMetric = () => {
     useASTitle("Popular Models - Climate Models");
@@ -66,7 +67,7 @@ const PopularModelsMetric = () => {
                     experiments.push({
                         expid: exp,
                         model: model.model,
-                        modelName: model.model.split('/').pop(),
+                        modelName: extractModelName(model.model),
                         modelColor: modelColors[model.model]
                     });
                 });

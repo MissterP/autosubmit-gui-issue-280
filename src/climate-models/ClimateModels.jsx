@@ -61,6 +61,27 @@ const ClimateModels = () => {
             description: "Monitor the computational footprint and resource usage of different climate models. Track energy consumption and performance metrics across simulation jobs.",
             icon: "fa-solid fa-leaf",
             route: "/climate-models/footprint-models"
+        },
+        {
+            id: "sypd-parallelization",
+            title: "SYPD vs Parallelization",
+            description: "Analyze Simulated Years Per Day performance against parallelization/CPU count. Compare performance across different climate models and HPC platforms.",
+            icon: "fa-solid fa-tachometer-alt",
+            route: "/climate-models/sypd-parallelization"
+        },
+        {
+            id: "chsy-parallelization",
+            title: "CHSY vs Parallelization", 
+            description: "Examine Core Hours per Simulated Year metrics versus parallelization levels. Understand scalability patterns across models and computing platforms.",
+            icon: "fa-solid fa-microchip",
+            route: "/climate-models/chsy-parallelization"
+        },
+        {
+            id: "jpsy-parallelization",
+            title: "JPSY vs Parallelization",
+            description: "Explore Joules per Simulated Year energy consumption patterns against CPU count. Evaluate energy efficiency across different parallelization strategies.",
+            icon: "fa-solid fa-bolt",
+            route: "/climate-models/jpsy-parallelization"
         }
     ];
 

@@ -43,35 +43,66 @@ export const saveSVGObj = (svgData, filename) => {
 }
 
 export const saveSVGAsPNG = (svgElement, filename, scale = 2) => {
-  const svgString = (new XMLSerializer()).serializeToString(svgElement);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
-  
-  // Get SVG dimensions
-  const svgRect = svgElement.getBoundingClientRect();
-  canvas.width = svgRect.width * scale;
-  canvas.height = svgRect.height * scale;
-  
-  img.onload = function() {
-    // Set white background
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  try {
+    const svgString = (new XMLSerializer()).serializeToString(svgElement);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
     
-    // Draw the SVG image
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Get SVG dimensions - handle both attached and detached elements
+    let svgRect;
+    if (svgElement.getBoundingClientRect) {
+      svgRect = svgElement.getBoundingClientRect();
+    } else {
+      // Fallback for detached elements
+      const width = svgElement.getAttribute('width') || svgElement.viewBox?.baseVal?.width || 800;
+      const height = svgElement.getAttribute('height') || svgElement.viewBox?.baseVal?.height || 600;
+      svgRect = { width: parseFloat(width), height: parseFloat(height) };
+    }
     
-    // Convert to PNG and download
-    canvas.toBlob(function(blob) {
-      const url = URL.createObjectURL(blob);
-      triggerDownload(url, filename);
-      URL.revokeObjectURL(url);
-    }, 'image/png');
-  };
-  
-  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  img.src = url;
+    canvas.width = svgRect.width * scale;
+    canvas.height = svgRect.height * scale;
+    
+    img.onload = function() {
+      try {
+        // Set white background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw the SVG image
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to PNG and download
+        canvas.toBlob(function(blob) {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, filename);
+            URL.revokeObjectURL(url);
+          } else {
+            console.error('Failed to create blob from canvas');
+          }
+        }, 'image/png');
+      } catch (error) {
+        console.error('Error drawing image to canvas:', error);
+      } finally {
+        // Clean up the data URL
+        URL.revokeObjectURL(img.src);
+      }
+    };
+    
+    img.onerror = function(error) {
+      console.error('Error loading SVG image:', error);
+      URL.revokeObjectURL(img.src);
+    };
+    
+    // Create data URL from SVG string
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    img.src = url;
+    
+  } catch (error) {
+    console.error('Error in saveSVGAsPNG:', error);
+  }
 }
 
 
@@ -125,4 +156,24 @@ export const parseLogPath = (logfile) => {
   const logPathSplit = logfile && logfile.length > 0 ? logfile.split("/") : [""];
   const logFileName = logPathSplit.pop();
   return logFileName;
+};
+
+/**
+ * Extract model name from a climate model URL
+ * @param {string} modelUrl - The URL of the climate model
+ * @returns {string} - The extracted model name or the original string if not a URL
+ */
+export const extractModelName = (modelUrl) => {
+  if (!modelUrl || typeof modelUrl !== 'string') {
+    return modelUrl || '';
+  }
+  
+  // If it's a URL, extract the basename (filename)
+  if (modelUrl.includes('/')) {
+    const parts = modelUrl.split('/');
+    return parts[parts.length - 1] || modelUrl;
+  }
+  
+  // If it's not a URL, return as is
+  return modelUrl;
 };

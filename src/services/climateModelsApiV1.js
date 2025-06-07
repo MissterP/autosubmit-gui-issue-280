@@ -39,6 +39,24 @@ export const climateModelsApi = createApi({
                 params: { start_date, end_date }
             })
         }),
+        getSypdParallelizationModels: builder.query({
+            query: () => ({
+                url: `metrics/sypd_parallelization_models`,
+                method: "GET"
+            })
+        }),
+        getChsyParallelizationModels: builder.query({
+            query: () => ({
+                url: `metrics/chsy_parallelization_models`,
+                method: "GET"
+            })
+        }),
+        getJpsyParallelizationModels: builder.query({
+            query: () => ({
+                url: `metrics/jpsy_parallelization_models`,
+                method: "GET"
+            })
+        }),
     }),
 })
 
@@ -47,4 +65,7 @@ export const {
     useGetPopularModelsHistoricalQuery,
     useGetFootprintModelsAggregatedQuery,
     useGetFootprintModelsHistoricalQuery,
+    useGetSypdParallelizationModelsQuery,
+    useGetChsyParallelizationModelsQuery,
+    useGetJpsyParallelizationModelsQuery
 } = climateModelsApi

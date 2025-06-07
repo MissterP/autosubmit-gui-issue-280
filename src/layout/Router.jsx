@@ -30,6 +30,9 @@ import TopAnnouncement from "./TopAnnouncement";
 import ClimateModels from "../climate-models/ClimateModels";
 import PopularModelsMetric from "../climate-models/metrics/PopularModelsMetric";
 import FootprintModelsMetric from "../climate-models/metrics/FootprintModelsMetric";
+import SypdParallelizationMetric from "../climate-models/metrics/SypdParallelizationMetric";
+import ChsyParallelizationMetric from "../climate-models/metrics/ChsyParallelizationMetric";
+import JpsyParallelizationMetric from "../climate-models/metrics/JpsyParallelizationMetric";
 
 const router = createBrowserRouter(
   [
@@ -72,6 +75,18 @@ const router = createBrowserRouter(
         {
           path: "/climate-models/footprint-models",
           element: <FootprintModelsMetric />,
+        },
+        {
+          path: "/climate-models/sypd-parallelization",
+          element: <SypdParallelizationMetric />,
+        },
+        {
+          path: "/climate-models/chsy-parallelization",
+          element: <ChsyParallelizationMetric />,
+        },
+        {
+          path: "/climate-models/jpsy-parallelization",
+          element: <JpsyParallelizationMetric />,
         },
         {
           path: "/experiment/:expid",

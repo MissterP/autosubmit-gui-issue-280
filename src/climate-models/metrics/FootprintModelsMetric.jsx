@@ -6,6 +6,7 @@ import MetricPageHeader from "../components/shared/MetricPageHeader";
 import ChartViewContainer from "../components/shared/ChartViewContainer";
 import HistoricalDataSection from "../components/shared/HistoricalDataSection";
 import TopExperimentsSection from "../components/TopExperimentsSection";
+import { extractModelName } from '../../services/utils';
 
 const FootprintModelsMetric = () => {
     useASTitle("Model Carbon Footprint - Climate Models");
@@ -78,7 +79,7 @@ const FootprintModelsMetric = () => {
                     simJobs.push({
                         simJobId: simJob,
                         model: model.model,
-                        modelName: model.model.split('/').pop(),
+                        modelName: extractModelName(model.model),
                         modelColor: modelColors[model.model],
                         footprint: model.footprint || 0
                     });
