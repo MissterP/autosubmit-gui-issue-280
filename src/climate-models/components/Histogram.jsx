@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import * as d3 from "d3";
 import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
 import { formatNumberMoney } from "../../components/context/utils";
+import { getClimateModelColor, extractModelName } from "../utils/colorUtils";
 
 const Histogram = ({ 
     data, 
@@ -22,47 +23,63 @@ const Histogram = ({
     
     useEffect(() => {
         if (data && data.length > 0) {
-            // Always use cumulative values when available, fallback to regular values
-            const processedData = data.map(item => ({
-                ...item,
-                [valueKey]: item[cumulativeValueKey] || item[valueKey] || 0
-            }));
+            // Process data without aggregation since API provides individual counts
+            // Each model entry should remain separate even if they have the same extracted name
+            const processedData = data.map((item, index) => {
+                const modelName = extractModelName(item[modelKey]);
+                const value = item[cumulativeValueKey] || item[valueKey] || item.count || 0;
+                
+                return {
+                    ...item,
+                    [valueKey]: value,
+                    modelName: modelName,
+                    originalModelName: item[modelKey], // Keep original model name for color consistency
+                    uniqueId: `${item[modelKey]}_${index}` // Add unique identifier to prevent merging
+                };
+            });
             
+            // Sort by value (no aggregation needed)
             const sorted = processedData.sort((a, b) => (b[valueKey] || 0) - (a[valueKey] || 0));
             setSortedData(sorted);
         }
-    }, [data, valueKey, cumulativeValueKey]);
+    }, [data, valueKey, cumulativeValueKey, modelKey]);
 
-    const formatValue = (value) => {
+    // Sync displayCount with maxBars when it changes from parent
+    useEffect(() => {
+        setDisplayCount(maxBars);
+    }, [maxBars]);
+
+    const formatValue = useCallback((value) => {
         if (formatAsInteger) {
             return formatNumberMoney(Math.round(value), true);
         }
         return formatNumberMoney(value, false, 2);
-    };
+    }, [formatAsInteger]);
 
-    const formatAxisLabel = (value) => {
+    const formatAxisLabel = useCallback((value) => {
         if (formatAsInteger) {
             return formatNumberMoney(Math.round(value), true);
         }
         return formatNumberMoney(value, false, 1);
-    };
+    }, [formatAsInteger]);
 
-    const getModelName = (url) => {
-        if (!url) return 'Unknown';
-        const parts = url.split('/');
-        return parts[parts.length - 1] || 'Unknown';
-    };
+    const getModelName = useCallback((item) => {
+        return item.modelName || extractModelName(item[modelKey]);
+    }, [modelKey]);
 
-    const handleBarClick = (item) => {
+    const handleBarClick = useCallback((item) => {
         if (onBarClick) {
             onBarClick(item);
         }
-    };
+    }, [onBarClick]);
 
     useEffect(() => {
-        if (!sortedData.length || !svgRef.current) return;
+        if (!sortedData.length || !svgRef.current) {
+            return;
+        }
 
         const displayData = sortedData.slice(0, displayCount);
+        
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove();
 
@@ -74,12 +91,17 @@ const Histogram = ({
         const width = Math.max(containerWidth - margin.left - margin.right, 600);
         
         // Calculate height based on number of bars and ensure minimum height
-        const barHeight = 50; // Increased height per bar for better spacing
-        const height = Math.max(500, displayData.length * barHeight) - margin.top - margin.bottom;
+        const barHeight = 50; // Height per bar for better spacing
+        const minHeight = 400; // Minimum chart height
+        const calculatedHeight = Math.max(minHeight, displayData.length * barHeight);
+        const height = calculatedHeight - margin.top - margin.bottom;
 
-        // Update SVG dimensions
-        svg.attr("width", width + margin.left + margin.right)
-           .attr("height", height + margin.top + margin.bottom);
+        // Update SVG dimensions - ensure proper sizing for varying number of bars
+        const totalSVGHeight = height + margin.top + margin.bottom;
+        const totalSVGWidth = width + margin.left + margin.right;
+        
+        svg.attr("width", totalSVGWidth)
+           .attr("height", totalSVGHeight);
 
         const g = svg.append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -91,14 +113,17 @@ const Histogram = ({
             .range([0, width]);
 
         const yScale = d3.scaleBand()
-            .domain(displayData.map(d => getModelName(d[modelKey])))
+            .domain(displayData.map(d => d.uniqueId)) // Use unique ID to ensure separate bars
             .range([0, height])
             .padding(0.1);
 
-        // Color scale
-        const colorScale = d3.scaleOrdinal()
-            .domain(displayData.map(d => getModelName(d[modelKey])))
-            .range(d3.schemeCategory10);
+        // Color scale using consistent climate model colors
+        // Use original model name (URL) for color consistency across charts
+        // This ensures each unique model URL gets a different color
+        const colorScale = (item) => {
+            const originalName = item.originalModelName || item[modelKey];
+            return getClimateModelColor(originalName);
+        };
 
         // Create tooltip
         const tooltip = d3.select("body").selectAll(".d3-tooltip")
@@ -126,19 +151,19 @@ const Histogram = ({
             .join("rect")
             .attr("class", "bar")
             .attr("x", 0)
-            .attr("y", d => yScale(getModelName(d[modelKey])))
+            .attr("y", d => yScale(d.uniqueId))
             .attr("height", yScale.bandwidth())
-            .attr("fill", d => colorScale(getModelName(d[modelKey])))
+            .attr("fill", d => colorScale(d))
             .style("cursor", "pointer")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("opacity", 0.8);
-                const modelName = getModelName(d[modelKey]);
+                const modelName = getModelName(d);
                 const value = d[valueKey] || 0;
                 
                 tooltip
                     .style("visibility", "visible")
                     .html(`<div style="text-align: center;">
-                           <strong style="color: ${colorScale(modelName)};">${modelName}</strong><br/>
+                           <strong style="color: ${colorScale(d)};">${modelName}</strong><br/>
                            <strong style="font-size: 16px;">Total Count: ${formatValue(value)}</strong>
                            </div>`);
             })
@@ -177,7 +202,7 @@ const Histogram = ({
             .join("text")
             .attr("class", "bar-label")
             .attr("x", d => xScale(d[valueKey] || 0) + 10) // Increased spacing
-            .attr("y", d => yScale(getModelName(d[modelKey])) + yScale.bandwidth() / 2)
+            .attr("y", d => yScale(d.uniqueId) + yScale.bandwidth() / 2)
             .attr("dy", "0.35em")
             .style("font-size", "14px") // Larger font size
             .style("font-weight", "bold")
@@ -204,18 +229,31 @@ const Histogram = ({
             .style("fill", "#374151")
             .style("text-anchor", "middle");
 
-        // Y-axis with larger font
-        const yAxis = d3.axisLeft(yScale);
+        // Y-axis with custom labels showing model names
+        const yAxis = d3.axisLeft(yScale)
+            .tickSize(0) // Remove tick lines to prevent vertical lines
+            .tickPadding(10) // Add padding between text and axis
+            .tickFormat(d => {
+                // Find the data item with this unique ID and return its model name
+                const item = displayData.find(item => item.uniqueId === d);
+                return item ? getModelName(item) : d;
+            });
 
-        g.append("g")
+        const yAxisGroup = g.append("g")
             .attr("class", "y-axis")
-            .call(yAxis)
-            .selectAll("text")
+            .call(yAxis);
+
+        // Style the Y-axis and completely remove any vertical lines
+        yAxisGroup.selectAll("text")
             .style("font-size", "14px") // Reduced font size to prevent overlap
             .style("font-weight", "bold")
             .style("fill", "#374151")
             .style("text-anchor", "end") // Right alignment for better readability
             .attr("dx", "-1.2em"); // Increased space between text and axis
+
+        // Remove the Y-axis domain line and any tick lines to clean up appearance
+        yAxisGroup.select(".domain").remove();
+        yAxisGroup.selectAll(".tick line").remove();
 
         // X-axis label
         g.append("text")
@@ -239,20 +277,20 @@ const Histogram = ({
             .style("fill", "#374151")
             .text(xAxisLabel);
 
-        // Grid lines
+        // Grid lines - properly constrained within chart area and exclude zero line
         g.selectAll(".grid-line")
-            .data(xScale.ticks(5))
+            .data(xScale.ticks(5).filter(d => d > 0)) // Exclude the zero line to prevent overlap with Y-axis
             .join("line")
             .attr("class", "grid-line")
-            .attr("x1", d => xScale(d))
-            .attr("x2", d => xScale(d))
+            .attr("x1", d => Math.max(0, Math.min(width, xScale(d))))
+            .attr("x2", d => Math.max(0, Math.min(width, xScale(d))))
             .attr("y1", 0)
             .attr("y2", height)
             .style("stroke", "#e5e7eb")
             .style("stroke-width", 1)
             .style("opacity", 0.5);
 
-    }, [sortedData, displayCount, valueKey, cumulativeValueKey, modelKey, formatValue, formatAxisLabel, handleBarClick]);
+    }, [sortedData, displayCount, valueKey, modelKey, formatAsInteger]);
 
     if (!data || data.length === 0) {
         return (
@@ -274,10 +312,26 @@ const Histogram = ({
                         <label className="text-sm font-medium text-dark dark:text-light">Show:</label>
                         <select 
                             value={displayCount} 
-                            onChange={(e) => setDisplayCount(Number(e.target.value))}
+                            onChange={(e) => {
+                                const newValue = Number(e.target.value);
+                                setDisplayCount(newValue);
+                            }}
                             className="form-select text-sm border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-dark dark:text-light rounded"
                         >
-                            {[5, 10, 15, 20, sortedData.length].filter(num => num <= sortedData.length).map(num => (
+                            {(() => {
+                                const options = [5, 10, 15, 20];
+                                // Add additional options for larger datasets
+                                if (sortedData.length > 20) {
+                                    options.push(25, 30, 50);
+                                }
+                                // Always add "All" option if there are more than maxBars items
+                                if (sortedData.length > maxBars) {
+                                    options.push(sortedData.length);
+                                }
+                                // Filter out duplicates and sort
+                                const finalOptions = [...new Set(options)].filter(num => num <= sortedData.length).sort((a, b) => a - b);
+                                return finalOptions;
+                            })().map(num => (
                                 <option key={num} value={num}>
                                     {num === sortedData.length ? 'All' : num}
                                 </option>
@@ -312,8 +366,10 @@ const Histogram = ({
                     
                     {/* Chart */}
                     <div className="overflow-x-auto">
-                        <div className="min-w-full" style={{ minHeight: '600px' }}>
-                            <svg ref={svgRef} width="100%" height="100%"></svg>
+                        <div className="min-w-full" style={{ 
+                            minHeight: displayCount <= 10 ? '600px' : `${Math.max(600, displayCount * 50 + 200)}px` 
+                        }}>
+                            <svg ref={svgRef} key={`histogram-${displayCount}-${sortedData.length}`} width="100%" height="100%"></svg>
                         </div>
                     </div>
                 </div>
@@ -337,4 +393,54 @@ const Histogram = ({
     );
 };
 
-export default memo(Histogram);
+// Custom comparison function for memo to prevent unnecessary re-renders
+// Only compare props that actually affect the chart rendering
+const arePropsEqual = (prevProps, nextProps) => {
+    // Compare primitive props
+    if (
+        prevProps.title !== nextProps.title ||
+        prevProps.xAxisLabel !== nextProps.xAxisLabel ||
+        prevProps.yAxisLabel !== nextProps.yAxisLabel ||
+        prevProps.maxBars !== nextProps.maxBars ||
+        prevProps.className !== nextProps.className ||
+        prevProps.valueKey !== nextProps.valueKey ||
+        prevProps.cumulativeValueKey !== nextProps.cumulativeValueKey ||
+        prevProps.modelKey !== nextProps.modelKey ||
+        prevProps.formatAsInteger !== nextProps.formatAsInteger
+    ) {
+        return false;
+    }
+
+    // Compare data array - this is the most important comparison
+    if (prevProps.data !== nextProps.data) {
+        // If references are different, check if the content is actually different
+        if (!prevProps.data || !nextProps.data) {
+            return prevProps.data === nextProps.data;
+        }
+        if (prevProps.data.length !== nextProps.data.length) {
+            return false;
+        }
+        // For performance, just check if the first and last items are the same
+        // Since this is sorted data, if these match, the middle probably does too
+        if (prevProps.data.length > 0) {
+            const prevFirst = prevProps.data[0];
+            const nextFirst = nextProps.data[0];
+            const prevLast = prevProps.data[prevProps.data.length - 1];
+            const nextLast = nextProps.data[nextProps.data.length - 1];
+            
+            if (
+                prevFirst[nextProps.modelKey] !== nextFirst[nextProps.modelKey] ||
+                prevFirst[nextProps.valueKey] !== nextFirst[nextProps.valueKey] ||
+                prevLast[nextProps.modelKey] !== nextLast[nextProps.modelKey] ||
+                prevLast[nextProps.valueKey] !== nextLast[nextProps.valueKey]
+            ) {
+                return false;
+            }
+        }
+    }
+
+    // Don't compare onBarClick callback as it might change reference but not functionality
+    return true;
+};
+
+export default memo(Histogram, arePropsEqual);

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { saveSVGObj, saveSVGAsPNG, extractModelName } from '../../services/utils';
+import { saveSVGObj, saveSVGAsPNG } from '../../services/utils';
+import { formatNumberMoney } from '../../components/context/utils';
+import { getClimateModelColor, extractModelName } from '../utils/colorUtils';
 import { useNavigate } from 'react-router-dom';
 
 const ScalabilityScatterPlot = ({
@@ -14,15 +16,6 @@ const ScalabilityScatterPlot = ({
 }) => {
     const svgRef = useRef(null);
     const navigate = useNavigate();
-
-    // Color palette matching historical components (LineChart.jsx)
-    const generateColor = (index) => {
-        const colors = [
-            '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-            '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6366F1'
-        ];
-        return colors[index % colors.length];
-    };
 
     // Custom download functions that exclude zoom buttons
     const downloadSVG = () => {
@@ -90,11 +83,11 @@ const ScalabilityScatterPlot = ({
             .range([height, 0])
             .nice();
 
-        // Color scale for different models/categories using historical palette
+        // Color scale for different models/categories using consistent climate model colors
         const uniqueValues = [...new Set(data.map(d => d[colorAttribute]))];
         const colorScale = d3.scaleOrdinal()
             .domain(uniqueValues)
-            .range(uniqueValues.map((_, i) => generateColor(i)));
+            .range(uniqueValues.map(value => getClimateModelColor(value)));
 
         // Create main group
         const g = svg.append('g')
@@ -110,16 +103,18 @@ const ScalabilityScatterPlot = ({
         // Apply clipping path to the main group
         g.attr("clip-path", "url(#chart-clip)");
 
-        // Add axes
+        // Add axes with number formatting
         const xAxis = d3.axisBottom(xScale)
             .tickSize(-height)
             .tickSizeOuter(0)
-            .tickPadding(10);
+            .tickPadding(10)
+            .tickFormat(d => typeof d === 'number' ? formatNumberMoney(d, false, 0) : d);
 
         const yAxis = d3.axisLeft(yScale)
             .tickSize(-width)
             .tickSizeOuter(0)
-            .tickPadding(10);
+            .tickPadding(10)
+            .tickFormat(d => typeof d === 'number' ? formatNumberMoney(d, false, 0) : d);
 
         const xAxisGroup = svg.append('g')
             .attr('class', 'x-axis')
@@ -256,12 +251,20 @@ const ScalabilityScatterPlot = ({
                 // Show enhanced tooltip
                 const modelColor = colorScale(d[colorAttribute]);
                 
+                // Format values for better display
+                const formatValue = (value) => {
+                    if (typeof value === 'number') {
+                        return formatNumberMoney(value, false, 2);
+                    }
+                    return value;
+                };
+                
                 tooltip
                     .style("visibility", "visible")
                     .html(`<div style="text-align: center;">
                            <strong style="color: ${modelColor};">${d.experiment_name || d.experiment_id || 'Experiment'}</strong><br/>
-                           <span style="opacity: 0.9;">${yLabel}: <strong>${d[yAttribute]}</strong></span><br/>
-                           <span style="opacity: 0.9;">Parallelization: <strong>${d[xAttribute]}</strong></span>
+                           <span style="opacity: 0.9;">${yLabel}: <strong>${formatValue(d[yAttribute])}</strong></span><br/>
+                           <span style="opacity: 0.9;">Parallelization: <strong>${formatValue(d[xAttribute])}</strong></span>
                            </div>`);
             })
             .on('mousemove', function(event, d) {
@@ -411,19 +414,20 @@ const ScalabilityScatterPlot = ({
             svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
         });
 
-        // Add legend with enhanced model name highlighting
+        // Add legend with enhanced model name highlighting using consistent colors
         const legend = svg.append('g')
             .attr('class', 'legend')
             .attr('transform', `translate(${width + margin.left + 20}, ${margin.top + 120})`);
 
         uniqueValues.forEach((value, i) => {
+            const modelColor = getClimateModelColor(value);
             const legendRow = legend.append('g')
                 .attr('transform', `translate(0, ${i * 25})`)
                 .style('cursor', 'pointer');
 
             legendRow.append('circle')
                 .attr('r', 6)
-                .style('fill', generateColor(i))
+                .style('fill', modelColor)
                 .style('fill-opacity', 0.8)
                 .style('stroke', '#fff')
                 .style('stroke-width', 2);
@@ -433,7 +437,7 @@ const ScalabilityScatterPlot = ({
                 .attr('y', 5)
                 .style('font-size', '13px')
                 .style('font-weight', '500')
-                .style('fill', generateColor(i))
+                .style('fill', modelColor)
                 .text(extractModelName(value));
 
             // Add hover effects to legend items

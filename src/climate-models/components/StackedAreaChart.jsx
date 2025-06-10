@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from "react";
 import * as d3 from "d3";
 import { cn, saveSVGObj, saveSVGAsPNG } from "../../services/utils";
 import { formatNumberMoney } from "../../components/context/utils";
+import { getClimateModelColor, extractModelName } from "../utils/colorUtils";
 
 const StackedAreaChart = ({ 
     data, 
@@ -22,9 +23,7 @@ const StackedAreaChart = ({
     const [selectedModels, setSelectedModels] = useState(new Set());
 
     const getModelName = (url) => {
-        if (!url) return 'Unknown';
-        const parts = url.split('/');
-        return parts[parts.length - 1] || 'Unknown';
+        return extractModelName(url);
     };
 
     const formatValue = (value) => {
@@ -41,12 +40,8 @@ const StackedAreaChart = ({
         return formatNumberMoney(value, false, 1);
     };
 
-    const generateColor = (index) => {
-        const colors = [
-            '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-            '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6366F1'
-        ];
-        return colors[index % colors.length];
+    const generateColor = (modelName) => {
+        return getClimateModelColor(modelName);
     };
 
     // Process data for stacked area chart
@@ -83,7 +78,7 @@ const StackedAreaChart = ({
                     modelMap.set(modelUrl, {
                         fullName: modelUrl,
                         name: modelName,
-                        color: generateColor(modelMap.size),
+                        color: generateColor(modelUrl), // Use full model URL for color consistency
                         hasCumulative: item[cumulativeValueKey] !== undefined
                     });
                 }
